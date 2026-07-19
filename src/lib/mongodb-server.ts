@@ -67,27 +67,66 @@ async function writeLocalCollection(collectionName: string, data: any[]): Promis
   }
 }
 
+let lastConnectionError: string | null = null;
+let clientPromise: Promise<MongoClient> | null = null;
+
 async function getDbConnection() {
   if (db) return db;
   if (!MONGODB_URI) {
-    // Graceful fallback to local JSON DB
+    lastConnectionError = 'MONGODB_URI is not configured in the environment variables';
     return null;
   }
   try {
-    if (!client) {
-      client = new MongoClient(MONGODB_URI);
-      await client.connect();
-      console.log('Successfully connected to MongoDB!');
+    if (!clientPromise) {
+      client = new MongoClient(MONGODB_URI, {
+        connectTimeoutMS: 5000,
+        socketTimeoutMS: 5000,
+        serverSelectionTimeoutMS: 5000
+      });
+      clientPromise = client.connect().then(c => {
+        console.log('Successfully connected to MongoDB!');
+        lastConnectionError = null;
+        return c;
+      }).catch(err => {
+        clientPromise = null;
+        client = null;
+        throw err;
+      });
     }
-    db = client.db(DB_NAME);
+    const connectedClient = await clientPromise;
+    db = connectedClient.db(DB_NAME);
     return db;
-  } catch (err) {
-    console.warn('Could not connect to MongoDB, falling back to local JSON files:', err);
+  } catch (err: any) {
+    lastConnectionError = err.message || String(err);
+    console.warn('Could not connect to MongoDB, falling back to local JSON files:', lastConnectionError);
     return null;
   }
 }
 
 export const dbHelper = {
+  getDiagnostics: async () => {
+    const isConnected = !!(await getDbConnection());
+    let maskedUri = MONGODB_URI;
+    try {
+      if (MONGODB_URI) {
+        const parsed = new URL(MONGODB_URI);
+        if (parsed.password) {
+          parsed.password = '******';
+        }
+        maskedUri = parsed.toString();
+      }
+    } catch (e) {
+      maskedUri = MONGODB_URI ? MONGODB_URI.replace(/:([^:@]+)@/, ':******@') : '';
+    }
+    return {
+      connected: isConnected,
+      databaseName: DB_NAME,
+      uri: maskedUri,
+      error: lastConnectionError,
+      environment: process.env.NODE_ENV || 'production',
+      isVercel: !!process.env.VERCEL
+    };
+  },
   find: async (collectionName: string, queryObj: any = {}, sortObj: any = null, limitVal: number = 0, skipVal: number = 0) => {
     const database = await getDbConnection();
     if (database) {
