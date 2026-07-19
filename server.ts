@@ -11,8 +11,6 @@ const USERS = [
   { username: 'kasiejkt', password: 'kasiejkt123', role: 'Kepala Gudang JKT', name: 'Moch. Johar Prasojo', companyId: 'COMPANY_C3_CORP' },
   { username: 'admin', password: 'admin123', role: 'Super Admin', name: 'HQ Warehouse', companyId: 'COMPANY_C3_CORP' },
   { username: 'adji', password: 'adji123', role: 'Developer', name: 'Adji Prasetyo', companyId: 'COMPANY_C3_CORP' },
-  { username: 'adminpps', password: 'pps123', role: 'Super Admin', name: 'Budi (WMS PPS)', companyId: 'COMPANY_PPS' },
-  { username: 'adminbillstone', password: 'billstone123', role: 'Super Admin', name: 'Admin (Gudang Billstone)', companyId: 'COMPANY_BILLSTONE' }
 ];
 
 // In-memory cache for GSheet Proxy
@@ -29,7 +27,7 @@ const requireAuth = (req: express.Request, res: express.Response, next: express.
   next();
 };
 
-async function startServer() {
+export const appPromise = (async () => {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
 
@@ -174,6 +172,15 @@ async function startServer() {
       const { username } = req.params;
       const session = await dbHelper.findOne("sessions", { username: username.toLowerCase() });
       res.json(session || { sessionId: null });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/db-diagnostics", async (req, res) => {
+    try {
+      const diag = await dbHelper.getDiagnostics();
+      res.json(diag);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -581,13 +588,13 @@ async function startServer() {
   });
 
   // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
+  if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
-  } else {
+  } else if (!process.env.VERCEL) {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
@@ -595,10 +602,15 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  return app;
+})();
+
+if (!process.env.VERCEL) {
+  const PORT = Number(process.env.PORT) || 3000;
+  appPromise.then((app) => {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
   });
 }
-
-startServer();
 
