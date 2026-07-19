@@ -1,6 +1,6 @@
-import { appPromise } from "../server";
+import { appPromise } from '../server.js';
 
-export default async (req: any, res: any) => {
+export default async function handler(req: any, res: any) {
   const app = await appPromise;
   return app(req, res);
-};
+}

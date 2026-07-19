@@ -22,11 +22,17 @@ if (rawDb.startsWith('"') && rawDb.endsWith('"')) {
 }
 const DB_NAME = rawDb.trim();
 
-const LOCAL_DATA_DIR = path.join(process.cwd(), 'data_db');
+const LOCAL_DATA_DIR = process.env.VERCEL
+  ? path.join('/tmp', 'data_db')
+  : path.join(process.cwd(), 'data_db');
 
 // Ensure local fallback directory exists
-if (!fs.existsSync(LOCAL_DATA_DIR)) {
-  fs.mkdirSync(LOCAL_DATA_DIR, { recursive: true });
+try {
+  if (!fs.existsSync(LOCAL_DATA_DIR)) {
+    fs.mkdirSync(LOCAL_DATA_DIR, { recursive: true });
+  }
+} catch (err) {
+  console.warn('Gagal membuat direktori lokal (bisa diabaikan jika berjalan di Vercel):', err);
 }
 
 function getLocalFile(collectionName: string): string {

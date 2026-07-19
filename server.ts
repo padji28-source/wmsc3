@@ -1,8 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import path from "path";
-import { createServer as createViteServer } from "vite";
-import { dbHelper } from "./src/lib/mongodb-server.ts";
+import { dbHelper } from "./src/lib/mongodb-server.js";
 
 // Static users list matching the client-side fallbacks
 const USERS = [
@@ -589,6 +588,7 @@ export const appPromise = (async () => {
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -613,4 +613,3 @@ if (!process.env.VERCEL) {
     });
   });
 }
-

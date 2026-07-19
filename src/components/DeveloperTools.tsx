@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Database, AlertTriangle, Trash2, ShieldAlert, CheckCircle, RefreshCw, Rocket, Download } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Database, AlertTriangle, Trash2, ShieldAlert, CheckCircle, RefreshCw, Rocket, Download, Wifi, WifiOff, Server, Info, Lock } from 'lucide-react';
 import { resetStockAndTransactions, getTransactions, getProducts, getLocators } from '../lib/db';
 
 export function DeveloperTools() {
@@ -9,6 +9,36 @@ export function DeveloperTools() {
   const [backupLoading, setBackupLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [diag, setDiag] = useState<any>(null);
+  const [diagLoading, setDiagLoading] = useState(false);
+
+  const fetchDiagnostics = async () => {
+    setDiagLoading(true);
+    try {
+      const res = await fetch('/api/db-diagnostics');
+      if (res.ok) {
+        const data = await res.json();
+        setDiag(data);
+      } else {
+        throw new Error(`HTTP ${res.status}`);
+      }
+    } catch (err: any) {
+      console.error('Failed to load DB diagnostics:', err);
+      setDiag({
+        connected: false,
+        error: err.message || 'Koneksi ke endpoint gagal',
+        databaseName: '-',
+        uri: '-',
+        isVercel: false
+      });
+    } finally {
+      setDiagLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDiagnostics();
+  }, []);
 
   const targetPhrase = 'RESET GUDANG';
 
@@ -103,6 +133,138 @@ export function DeveloperTools() {
         <p className="text-slate-500 mt-1.5 text-sm">
           Fasilitas khusus untuk Administrator Sistem dan Developer guna mengelola data database secara penuh.
         </p>
+      </div>
+
+      {/* MongoDB Connectivity Diagnostics */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="p-5 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Server className="w-5 h-5 text-indigo-600" />
+            <h3 className="font-extrabold text-slate-800 text-sm">Diagnostik Koneksi MongoDB Atlas</h3>
+          </div>
+          <button
+            onClick={fetchDiagnostics}
+            disabled={diagLoading}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold hover:bg-indigo-100 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${diagLoading ? 'animate-spin' : ''}`} />
+            Periksa Koneksi
+          </button>
+        </div>
+        <div className="p-6 space-y-4">
+          {diagLoading && !diag ? (
+            <div className="py-4 flex justify-center items-center gap-2 text-xs font-medium text-slate-500">
+              <RefreshCw className="w-4 h-4 animate-spin text-indigo-600" />
+              Sedang mendiagnosis status koneksi...
+            </div>
+          ) : diag ? (
+            <div className="space-y-4">
+              {/* Status Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg gap-4 border border-dashed border-slate-200">
+                <div className="flex items-center gap-3">
+                  {diag.connected ? (
+                    <div className="p-2 bg-emerald-100 text-emerald-700 rounded-full animate-pulse">
+                      <Wifi className="w-5 h-5" />
+                    </div>
+                  ) : (
+                    <div className="p-2 bg-rose-100 text-rose-700 rounded-full">
+                      <WifiOff className="w-5 h-5" />
+                    </div>
+                  )}
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Status Database</span>
+                      {diag.isVercel && (
+                        <span className="bg-blue-100 text-blue-800 text-[10px] font-extrabold px-1.5 py-0.5 rounded uppercase">Vercel Cloud</span>
+                      )}
+                    </div>
+                    <h4 className="text-sm font-black text-slate-800">
+                      {diag.connected ? 'Terhubung ke MongoDB Atlas!' : 'Gagal Terhubung ke MongoDB Atlas'}
+                    </h4>
+                  </div>
+                </div>
+                <div className="text-xs font-semibold text-slate-600 sm:text-right bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                  <div><strong>Target DB:</strong> <code className="font-mono text-indigo-700 text-[11px]">{diag.databaseName}</code></div>
+                  <div className="mt-1"><strong>Fallback:</strong> <span className={diag.connected ? 'text-slate-400' : 'text-amber-600 font-bold'}>{diag.connected ? 'Tidak Aktif' : 'Aktif (Local JSON Storage)'}</span></div>
+                </div>
+              </div>
+
+              {/* Connection String info */}
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-mono text-slate-700 break-all space-y-1.5">
+                <div className="flex items-center gap-1.5 font-bold text-slate-600 text-[10px] uppercase tracking-wider">
+                  <Lock className="w-3.5 h-3.5 text-slate-500" /> Masked Connection String (Vercel Env / Fallback):
+                </div>
+                <div className="bg-white p-2 rounded border border-slate-200 text-[10px] leading-relaxed select-all">
+                  {diag.uri || 'KOSONG (Periksa Environment Variable MONGODB_URI)'}
+                </div>
+              </div>
+
+              {/* Display error message if connection failed */}
+              {!diag.connected && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-red-50 text-red-900 border border-red-100 rounded-lg text-xs leading-relaxed space-y-2">
+                    <div className="flex items-center gap-2 font-black text-red-800">
+                      <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                      Detail Error Kegagalan Koneksi:
+                    </div>
+                    <code className="block bg-white p-3 rounded border border-red-200 font-mono text-[10px] text-red-700 whitespace-pre-wrap max-h-40 overflow-y-auto">
+                      {diag.error || 'Connection timed out atau IP tidak di-whitelist oleh firewall MongoDB Atlas.'}
+                    </code>
+                  </div>
+
+                  {/* STEP BY STEP TROUBLESHOOTING GUIDE */}
+                  <div className="p-5 bg-amber-50/50 text-amber-900 border border-amber-200 rounded-lg text-xs space-y-4">
+                    <div className="flex items-center gap-2 font-black text-amber-800">
+                      <Info className="w-4 h-4 text-amber-600 shrink-0" />
+                      Langkah Perbaikan Agar Database Terhubung di Vercel:
+                    </div>
+                    
+                    <div className="space-y-3 font-medium text-slate-700">
+                      <div>
+                        <strong className="text-amber-900 block font-bold">1. Izinkan Akses IP dari Mana Saja di MongoDB Atlas (Paling Penting!)</strong>
+                        <p className="text-[11px] mt-0.5 leading-relaxed text-slate-600">
+                          Karena Vercel menggunakan serverless dynamic IP yang berubah-ubah secara konstan, MongoDB Atlas akan memblokir semua request Vercel kecuali jika firewall dinonaktifkan.
+                        </p>
+                        <ol className="list-decimal pl-4 mt-1.5 space-y-1 text-[11px] text-slate-600">
+                          <li>Buka dashboard <a href="https://cloud.mongodb.com" target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline font-bold">MongoDB Atlas</a> Anda.</li>
+                          <li>Masuk ke menu <strong className="text-slate-800">Security</strong> &gt; <strong className="text-slate-800">Network Access</strong> di sidebar sebelah kiri.</li>
+                          <li>Klik tombol hijau <strong className="text-slate-800">"Add IP Address"</strong>.</li>
+                          <li>Klik tombol <strong className="text-slate-800">"Allow Access From Anywhere"</strong> (ini akan menginput IP <code className="bg-slate-100 px-1 rounded font-mono text-[10px] font-bold">0.0.0.0/0</code>).</li>
+                          <li>Klik <strong className="text-slate-800">Confirm</strong> dan tunggu sekitar 1-2 menit hingga statusnya menjadi <strong className="text-emerald-700">Active</strong>.</li>
+                        </ol>
+                      </div>
+
+                      <div className="pt-2 border-t border-amber-200">
+                        <strong className="text-amber-900 block font-bold">2. Daftarkan Environment Variable di Dashboard Vercel</strong>
+                        <p className="text-[11px] mt-0.5 leading-relaxed text-slate-600">
+                          Pastikan Anda telah mendaftarkan variabel berikut pada pengaturan proyek Vercel Anda (<strong className="text-slate-800">Project Settings &gt; Environment Variables</strong>):
+                        </p>
+                        <ul className="list-disc pl-4 mt-1.5 space-y-1 text-[11px] text-slate-600">
+                          <li><code className="bg-slate-100 px-1 rounded font-mono font-bold text-[10px]">MONGODB_URI</code> : <span className="font-sans">Isi dengan connection string MongoDB Atlas Anda (contoh: <code className="bg-slate-100 px-1 rounded font-mono text-[9px]">mongodb+srv://user:pass@cluster.mongodb.net/?appName=wms</code>)</span></li>
+                          <li><code className="bg-slate-100 px-1 rounded font-mono font-bold text-[10px]">MONGODB_DB_NAME</code> : <span className="font-sans">Isi dengan nama database target (contoh: <code className="bg-slate-100 px-1 rounded font-mono text-[9px]">psn_warehouse_management</code> atau <code className="bg-slate-100 px-1 rounded font-mono text-[9px]">wms</code>)</span></li>
+                        </ul>
+                        <p className="text-[10px] text-slate-500 mt-1 font-semibold italic">
+                          *Setelah menambahkan environment variables baru di Vercel, pastikan Anda melakukan redeploy di Vercel agar konfigurasinya aktif.
+                        </p>
+                      </div>
+
+                      <div className="pt-2 border-t border-amber-200">
+                        <strong className="text-amber-900 block font-bold">3. Pastikan Password Tidak Mengandung Karakter Khusus Tanpa URL-Encode</strong>
+                        <p className="text-[11px] mt-0.5 leading-relaxed text-slate-600">
+                          Jika password database MongoDB Atlas Anda mengandung karakter khusus seperti <code className="font-mono text-[11px]">@</code>, <code className="font-mono text-[11px]">/</code>, <code className="font-mono text-[11px]">:</code>, atau <code className="font-mono text-[11px]">+</code>, pastikan karakter tersebut sudah di-URL-encode (contoh: <code className="font-mono text-[11px]">@</code> diubah menjadi <code className="font-mono text-[11px]">%40</code>) di dalam string <code className="font-mono text-[10px]">MONGODB_URI</code>.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="py-4 flex justify-center text-xs font-semibold text-slate-500">
+              Klik tombol Periksa Koneksi untuk memulai pengecekan
+            </div>
+          )}
+        </div>
       </div>
 
       {error && (
