@@ -1,0 +1,95 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "Schema representing a SKU or product in the warehouse.",
+      "type": "object",
+      "properties": {
+        "sku": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "uom": { "type": "string" },
+        "volumeM3": { "type": "number" },
+        "minStock": { "type": "integer" }
+      },
+      "required": ["sku", "name", "volumeM3"]
+    },
+    "Locator": {
+      "title": "Locator",
+      "description": "Schema representing a warehouse rack/slot.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "rack": { "type": "string" },
+        "column": { "type": "string" },
+        "level": { "type": "integer" },
+        "maxVolumeM3": { "type": "number" },
+        "zone": { "type": "string" }
+      },
+      "required": ["id", "rack", "maxVolumeM3"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Schema representing a stock movement (inbound, outbound, or adjust).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["INBOUND", "OUTBOUND", "TRANSFER"] },
+        "sku": { "type": "string" },
+        "qty": { "type": "integer" },
+        "locatorId": { "type": "string" },
+        "operator": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["PENDING", "BOOKED", "CONFIRMED", "CANCELLED"] },
+        "memo": { "type": "string" },
+        "manifestId": { "type": "string" }
+      },
+      "required": ["id", "type", "sku", "qty", "locatorId", "operator", "timestamp", "status"]
+    },
+    "UserSession": {
+      "title": "UserSession",
+      "description": "Session tracking to prevent concurrent logins.",
+      "type": "object",
+      "properties": {
+        "sessionId": { "type": "string" },
+        "lastActive": { "type": "string", "format": "date-time" }
+      },
+      "required": ["sessionId", "lastActive"]
+    },
+    "User": {
+      "title": "User",
+      "description": "Database-mapped user profile details mapping Firebase Auth to Role Based Access Control.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "username": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["Developer","Super Admin", "Kepala Gudang JKT", "Admin A5", "Petugas"] },
+        "name": { "type": "string" }
+      },
+      "required": ["uid", "username", "email", "role", "name"]
+    }
+  },
+  "firestore": {
+    "/products/{sku}": {
+      "schema": "Product",
+      "description": "Storage for SKU master data."
+    },
+    "/locators/{locatorId}": {
+      "schema": "Locator",
+      "description": "Storage for physical warehouse storage slots."
+    },
+    "/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Ledger of all warehouse movements."
+    },
+    "/sessions/{username}": {
+      "schema": "UserSession",
+      "description": "Concurrently tracked login sessions."
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "RBAC user profile mapping Firebase Auth uid to specific operational roles."
+    }
+  }
+}

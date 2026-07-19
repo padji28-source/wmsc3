@@ -1,0 +1,122 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Default Deny Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function getUserRole() {
+      return getUserData().role;
+    }
+
+    function getUserCompanyId() {
+      return getUserData().companyId;
+    }
+
+    function isCompanyData() {
+      return resource.data.companyId == getUserCompanyId() || isDeveloper();
+    }
+    
+    function isCreateCompanyData() {
+      return request.resource.data.companyId == getUserCompanyId() || isDeveloper();
+    }
+
+    function isDeveloper() {
+      return getUserRole() == 'Developer';
+    }
+
+    function isOwnerAdmin() {
+      return getUserRole() in ['OWNER', 'ADMIN', 'Super Admin', 'Developer', 'Admin A5', 'Kepala Gudang', 'Kepala Gudang JKT'];
+    }
+
+    function isOperatorOrAbove() {
+      return getUserRole() in ['OWNER', 'ADMIN', 'MANAGER', 'OPERATOR', 'Super Admin', 'Developer', 'Admin A5', 'Kepala Gudang', 'Kepala Gudang JKT', 'Petugas'];
+    }
+
+    // Secure Profiles (Role Based Access Control)
+    match /users/{userId} {
+      // User can read members of the same company. Or Developer can read all.
+      allow read: if isSignedIn() && (isCompanyData() || isDeveloper() || isOwner(userId));
+      allow create: if isSignedIn(); // Allow sign-up
+      allow update: if isSignedIn() && (isDeveloper() || (isOwnerAdmin() && isCompanyData()) || isOwner(userId));
+      allow delete: if false;
+    }
+
+    // Concurrent login session tracking
+    match /sessions/{username} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Warehouse Master Data
+    match /products/{sku} {
+      allow read: if isSignedIn() && (isCompanyData() || isDeveloper());
+      allow create, update: if isSignedIn() && isOperatorOrAbove() && isCreateCompanyData();
+      allow delete: if isSignedIn() && isOwnerAdmin() && isCompanyData(); // Operators cannot delete master
+    }
+
+    match /locators/{locatorId} {
+      allow read: if isSignedIn() && (isCompanyData() || isDeveloper());
+      allow create, update: if isSignedIn() && isOperatorOrAbove() && isCreateCompanyData();
+      allow delete: if isSignedIn() && isOwnerAdmin() && isCompanyData(); // Operators cannot delete master
+    }
+
+    // Transactional Data
+    match /transactions/{transactionId} {
+      allow read: if isSignedIn() && (isCompanyData() || isDeveloper());
+      allow create: if isSignedIn() && isOperatorOrAbove() && isCreateCompanyData();
+      allow update, delete: if isSignedIn() && isOwnerAdmin() && isCompanyData(); // Operators cannot alter history
+    }
+    
+    match /rack_slots/{slotId} {
+      allow read: if isSignedIn() && (isCompanyData() || isDeveloper());
+      allow create, update: if isSignedIn() && isOperatorOrAbove() && isCreateCompanyData();
+      allow delete: if isSignedIn() && isOwnerAdmin() && isCompanyData();
+    }
+    
+    match /physical_stock_counts/{countId} {
+      allow read: if isSignedIn() && (isCompanyData() || isDeveloper());
+      allow create, update: if isSignedIn() && isOperatorOrAbove() && isCreateCompanyData();
+      allow delete: if isSignedIn() && isOwnerAdmin() && isCompanyData();
+    }
+    
+    // SaaS Administration
+    match /companies/{companyId} {
+      allow read: if isSignedIn() && (getUserCompanyId() == companyId || isDeveloper());
+      // Only Developer can write/create companies manually
+      allow write: if isSignedIn() && isDeveloper();
+    }
+    
+    match /subscriptions/{subId} {
+      allow read: if isSignedIn() && (isCompanyData() || isDeveloper());
+      // Subscription changing is locked for non-admins
+      allow write: if isSignedIn() && isDeveloper(); 
+    }
+    
+    match /usage_logs/{logId} {
+      allow read: if isSignedIn() && (isCompanyData() || isDeveloper());
+      allow create, update: if isSignedIn() && isOperatorOrAbove() && isCreateCompanyData();
+      allow delete: if isSignedIn() && isDeveloper(); // Cannot delete usage logs
+    }
+
+    match /audit_logs/{logId} {
+      allow create: if isSignedIn() && isCreateCompanyData();
+      allow read: if isSignedIn() && (isCompanyData() || isDeveloper());
+      allow update, delete: if false; // Immutable audit logs
+    }
+  }
+}

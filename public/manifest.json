@@ -1,0 +1,32 @@
+{
+  "short_name": "Gudang PSN",
+  "name": "Warehouse Management System - Gudang PSN",
+  "description": "Sistem Manajemen Gudang Pintar PSN - Monitor Stok, Inbound, Outbound, dan Rak.",
+  "id": "/",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "/wms.png",
+      "type": "image/png",
+      "sizes": "1024x1024",
+      "purpose": "any"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0f172a",
+  "theme_color": "#2563eb",
+  "display": "standalone",
+  "orientation": "portrait"
+}

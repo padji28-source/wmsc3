@@ -1,0 +1,6 @@
+{
+  "name": "PSN Warehouse Management System",
+  "description": "Standalone WMS for Gudang PSN featuring Directed Putaway and FIFO Picking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
