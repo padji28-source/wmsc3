@@ -369,11 +369,13 @@ export const RackManagement = () => {
     }
   };
 
-  const filteredLocators = locators.filter(l => 
-    l.id.toLowerCase().includes(search.toLowerCase()) || 
-    l.rack.toLowerCase().includes(search.toLowerCase()) ||
-    l.zone.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredLocators = locators
+    .filter(l => 
+      l.id.toLowerCase().includes(search.toLowerCase()) || 
+      l.rack.toLowerCase().includes(search.toLowerCase()) ||
+      l.zone.toLowerCase().includes(search.toLowerCase())
+    )
+    .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' }));
 
   const downloadSingleBarcodeAsPng = (locatorId: string, barcodeValue: string) => {
     const svgEl = document.getElementById(`qr-svg-${locatorId}`);

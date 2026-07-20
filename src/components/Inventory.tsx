@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Upload, Download, Edit2, Trash2, X, Save, AlertCircle, ChevronDown, CheckCircle2, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Upload, Download, Edit2, Trash2, X, Save, AlertCircle, ChevronDown, CheckCircle2, AlertTriangle, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { Product, ZoneCategory, Locator, Transaction } from '../types';
 import { getProducts, addProduct, updateProduct, deleteProduct as deleteProductFromDb, addProductsBatch, getTransactions, getInventoryDetails, getLocators, addProductWithStock, addProductsBatchWithStock, addTransaction, getAlowedRacksForCategory } from '../lib/db';
 import { getCurrentUser } from '../lib/auth'; // Mengambil fungsi auth
@@ -34,6 +34,16 @@ export function Inventory({ globalSearch = '' }: { globalSearch?: string }) {
   // Menggabungkan izin untuk melihat & mengeksekusi menu AKSI (Sekrung dibatasi HANYA untuk Super Admin)
   const hasActionAccess = isSuperAdmin;
 
+  // Local search states
+  const [localSearch, setLocalSearch] = useState(globalSearch);
+  const [searchQuery, setSearchQuery] = useState(globalSearch);
+
+  // Synchronize with globalSearch if it changes
+  useEffect(() => {
+    setLocalSearch(globalSearch);
+    setSearchQuery(globalSearch);
+  }, [globalSearch]);
+
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(30);
@@ -41,7 +51,7 @@ export function Inventory({ globalSearch = '' }: { globalSearch?: string }) {
   // Reset page ke 1 saat filter / search berubah
   useEffect(() => {
     setCurrentPage(1);
-  }, [categoryFilter, globalSearch]);
+  }, [categoryFilter, searchQuery]);
 
   const [transactions, setTransactions] = useState<any[]>([]);
 
@@ -90,9 +100,9 @@ export function Inventory({ globalSearch = '' }: { globalSearch?: string }) {
   // Logika penyaringan gabungan (Filter Kategori Dropdown + Live Global Search Bar)
   const filteredProducts = products.filter(p => {
     const matchesCategory = categoryFilter === '' || p.category === categoryFilter;
-    const matchesSearch = globalSearch === '' || 
-      p.sku.toLowerCase().includes(globalSearch.toLowerCase()) ||
-      p.name.toLowerCase().includes(globalSearch.toLowerCase());
+    const matchesSearch = searchQuery === '' || 
+      p.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.name.toLowerCase().includes(searchQuery.toLowerCase());
     
     return matchesCategory && matchesSearch;
   });
@@ -860,7 +870,7 @@ export function Inventory({ globalSearch = '' }: { globalSearch?: string }) {
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row md:items-center justify-between bg-white p-5 rounded-xl border border-slate-200 shadow-sm mb-4 mt-6 gap-4">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between bg-white p-5 rounded-xl border border-slate-200 shadow-sm mb-4 mt-6 gap-4">
          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
             <div>
                <h3 className="font-bold text-slate-800 text-sm">Filter Overview</h3>
@@ -874,20 +884,44 @@ export function Inventory({ globalSearch = '' }: { globalSearch?: string }) {
                {filteredProducts.length !== products.length && (
                  <div className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold">
                     Terfilter: <strong className="font-mono text-sm">{filteredProducts.length}</strong>
-                  </div>
+                 </div>
                )}
             </div>
          </div>
-         <select 
-           value={categoryFilter} 
-           onChange={e => setCategoryFilter(e.target.value)}
-           className="p-2 border border-slate-300 rounded text-sm text-slate-800 bg-slate-50 outline-none w-64 focus:border-blue-500 transition-colors"
-         >
-           <option value="">Semua Kategori Layout</option>
-           {Array.from(new Set(products.map(p => p.category))).map(cat => (
-             <option key={cat as string} value={cat as string}>{(cat as string).replace('_', ' ')}</option>
-           ))}
-         </select>
+         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full xl:w-auto">
+            <div className="relative flex-1 sm:w-64">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Cari SKU atau nama produk..."
+                value={localSearch}
+                onChange={(e) => setLocalSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    setSearchQuery(localSearch);
+                  }
+                }}
+                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              />
+            </div>
+            <button
+              onClick={() => setSearchQuery(localSearch)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-lg transition-colors shadow-sm cursor-pointer flex items-center justify-center gap-1.5 shrink-0"
+            >
+              <Search className="w-4 h-4" />
+              Cari
+            </button>
+            <select 
+              value={categoryFilter} 
+              onChange={e => setCategoryFilter(e.target.value)}
+              className="p-2 border border-slate-300 rounded-lg text-sm text-slate-800 bg-slate-50 outline-none sm:w-56 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all cursor-pointer"
+            >
+              <option value="">Semua Kategori Layout</option>
+              {Array.from(new Set(products.map(p => p.category))).map(cat => (
+                <option key={cat as string} value={cat as string}>{(cat as string).replace('_', ' ')}</option>
+              ))}
+            </select>
+         </div>
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden text-slate-800">

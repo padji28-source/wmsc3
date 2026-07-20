@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Shield, CheckCircle2, AlertCircle, Zap, Trash2, Printer, Eye, X, QrCode } from 'lucide-react';
+import { Camera, Shield, CheckCircle2, AlertCircle, Zap, Trash2, Printer, Eye, X, QrCode, Search } from 'lucide-react';
 import { Product, Locator, Transaction } from '../types';
 import { getProducts, getPutawayRecommendations, addTransaction, getTransactions, getInventoryDetails, getLocators, getAlowedRacksForCategory, deleteTransactions } from '../lib/db';
 import { v4 as uuidv4 } from 'uuid';
@@ -22,6 +22,15 @@ interface ReceiptPreviewData {
 export function Inbound({ globalSearch = '' }: { globalSearch?: string }) {
   const currentUser = getCurrentUser();
   const isSuperAdmin = currentUser?.role === 'Super Admin' || currentUser?.role === 'Developer';
+
+  // Local search states
+  const [localSearch, setLocalSearch] = useState(globalSearch);
+  const [searchQuery, setSearchQuery] = useState(globalSearch);
+
+  useEffect(() => {
+    setLocalSearch(globalSearch);
+    setSearchQuery(globalSearch);
+  }, [globalSearch]);
 
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedSku, setSelectedSku] = useState('');
@@ -436,8 +445,8 @@ export function Inbound({ globalSearch = '' }: { globalSearch?: string }) {
   let filteredConsolidated = allConsolidated.filter(tx => tx && tx.type === 'INBOUND');
   
   // Filter pencarian
-  if (globalSearch) {
-    const searchLower = globalSearch.toLowerCase();
+  if (searchQuery) {
+    const searchLower = searchQuery.toLowerCase();
     filteredConsolidated = filteredConsolidated.filter(tx => 
       tx.sku.toLowerCase().includes(searchLower) ||
       tx.locatorId.toLowerCase().includes(searchLower) ||
@@ -849,7 +858,7 @@ export function Inbound({ globalSearch = '' }: { globalSearch?: string }) {
 
         {/* RIWAYAT TRANSAKSI INBOUND (KONSOLIDASI 1 BARIS PER BATCH) */}
         <section className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-4 border-b border-slate-100 pb-4">
             <div>
               <h3 className="text-sm font-bold text-[#0F294D] uppercase tracking-wider flex items-center gap-1.5">
                 <span className="w-1 h-4 bg-slate-700 block rounded"></span>
@@ -858,18 +867,42 @@ export function Inbound({ globalSearch = '' }: { globalSearch?: string }) {
               <p className="text-[11px] text-slate-500">Daftar manifest log masuk dikonsolidasikan berdasarkan batch transaksi.</p>
             </div>
             
-            <select 
-               className="text-xs border-slate-300 rounded p-1"
-               value={historyPageSize} 
-               onChange={(e) => {
-                 setHistoryPageSize(Number(e.target.value));
-                 setHistoryCurrentPage(1);
-               }}
-            >
-               <option value={30}>30/halaman</option>
-               <option value={50}>50/halaman</option>
-               <option value={100}>100/halaman</option>
-            </select>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">
+              <div className="relative flex-1 sm:w-64">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Cari SKU, Rak, atau Operator..."
+                  value={localSearch}
+                  onChange={(e) => setLocalSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      setSearchQuery(localSearch);
+                    }
+                  }}
+                  className="w-full pl-10 pr-4 py-1.5 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                />
+              </div>
+              <button
+                onClick={() => setSearchQuery(localSearch)}
+                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition-colors shadow-sm cursor-pointer flex items-center justify-center gap-1 shrink-0"
+              >
+                <Search className="w-3.5 h-3.5" />
+                Cari
+              </button>
+              <select 
+                 className="text-xs border border-slate-300 rounded-lg p-1.5 bg-white cursor-pointer"
+                 value={historyPageSize} 
+                 onChange={(e) => {
+                   setHistoryPageSize(Number(e.target.value));
+                   setHistoryCurrentPage(1);
+                 }}
+              >
+                 <option value={30}>30/halaman</option>
+                 <option value={50}>50/halaman</option>
+                 <option value={100}>100/halaman</option>
+              </select>
+            </div>
           </div>
           
           <div className="overflow-x-auto rounded border border-slate-200">

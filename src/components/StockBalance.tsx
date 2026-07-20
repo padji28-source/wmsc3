@@ -12,7 +12,8 @@ import {
   Upload,
   Settings,
   Link,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Search
 } from 'lucide-react';
 import { Product } from '../types';
 import { getProducts, getInventoryDetails, updateProduct, getPhysicalStockCounts } from '../lib/db'; 
@@ -67,6 +68,17 @@ export function StockBalance({ globalSearch = '' }: { globalSearch?: string }) {
   const [realStockInputs, setRealStockInputs] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'warning'; text: string } | null>(null);
+  
+  // Local search and filter states
+  const [localSearch, setLocalSearch] = useState(globalSearch);
+  const [searchQuery, setSearchQuery] = useState(globalSearch);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'match' | 'discrepancy'>('all');
+
+  // Synchronize with globalSearch if it changes
+  useEffect(() => {
+    setLocalSearch(globalSearch);
+    setSearchQuery(globalSearch);
+  }, [globalSearch]);
   
   // State untuk Toggle Accordion per SKU
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
@@ -452,11 +464,25 @@ export function StockBalance({ globalSearch = '' }: { globalSearch?: string }) {
     XLSX.writeFile(workbook, `Stock_Balance_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
-  const filteredItems = stockItems.filter(item => 
-    item.sku.toLowerCase().includes(globalSearch.toLowerCase()) ||
-    item.name.toLowerCase().includes(globalSearch.toLowerCase()) ||
-    item.locatorId.toLowerCase().includes(globalSearch.toLowerCase())
-  );
+  const filteredItems = stockItems.filter(item => {
+    const matchesSearch = searchQuery ? (
+      item.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.locatorId.toLowerCase().includes(searchQuery.toLowerCase())
+    ) : true;
+
+    const realStockValue = parseFloat(realStockInputs[item.id] || '0') || 0;
+    const isMatch = item.systemStock - realStockValue === 0;
+
+    let matchesStatus = true;
+    if (statusFilter === 'match') {
+      matchesStatus = isMatch;
+    } else if (statusFilter === 'discrepancy') {
+      matchesStatus = !isMatch;
+    }
+
+    return matchesSearch && matchesStatus;
+  });
 
   // Grouping item berdasarkan SKU
   const groupedItems: GroupedStock[] = Object.values(filteredItems.reduce((acc: Record<string, GroupedStock>, item) => {
@@ -622,6 +648,47 @@ export function StockBalance({ globalSearch = '' }: { globalSearch?: string }) {
 
       {/* DATA TABLE STOCK BALANCE */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        {/* Search & Filter Bar */}
+        <div className="p-4 bg-slate-50/50 border-b border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2 w-full md:max-w-md">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Cari SKU, Nama Barang, atau ID Rak..."
+                value={localSearch}
+                onChange={(e) => setLocalSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    setSearchQuery(localSearch);
+                  }
+                }}
+                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              />
+            </div>
+            <button
+              onClick={() => setSearchQuery(localSearch)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-lg transition-colors shadow-sm cursor-pointer flex items-center gap-1.5 shrink-0"
+            >
+              <Search className="w-4 h-4" />
+              Cari
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Filter Status:</span>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              className="text-xs font-semibold border border-slate-300 rounded-lg p-2 bg-white focus:ring-blue-500 focus:border-blue-500 outline-none"
+            >
+              <option value="all">Semua Status</option>
+              <option value="match">Sesuai (Match)</option>
+              <option value="discrepancy">Selisih (Discrepancy)</option>
+            </select>
+          </div>
+        </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[1000px]">
             <thead className="bg-slate-50 border-b border-slate-200">

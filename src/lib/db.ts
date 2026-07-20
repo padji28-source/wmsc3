@@ -222,19 +222,37 @@ export const getLocators = async (): Promise<Locator[]> => {
       const response = await fetch(`/api/locators${companyIdParam}`);
       if (!response.ok) throw new Error("API call failed");
       const locators = await response.json();
-      if (companyId) {
-        saveToLocal('local_locators_' + companyId, locators);
+      
+      const uniqueLocators: Locator[] = [];
+      const seenIds = new Set<string>();
+      for (const loc of (locators || [])) {
+        if (loc && loc.id && !seenIds.has(loc.id)) {
+          seenIds.add(loc.id);
+          uniqueLocators.push(loc);
+        }
       }
-      cache.locators = locators;
+
+      if (companyId) {
+        saveToLocal('local_locators_' + companyId, uniqueLocators);
+      }
+      cache.locators = uniqueLocators;
       promises.locators = null;
-      return locators;
+      return uniqueLocators;
     } catch (err) {
       console.warn("getLocators MongoDB API failed, trying local storage", err);
       const fallback = companyId ? getFromLocal('local_locators_' + companyId) : null;
       if (fallback) {
-        cache.locators = fallback;
+        const uniqueFallback: Locator[] = [];
+        const seenIds = new Set<string>();
+        for (const loc of fallback) {
+          if (loc && loc.id && !seenIds.has(loc.id)) {
+            seenIds.add(loc.id);
+            uniqueFallback.push(loc);
+          }
+        }
+        cache.locators = uniqueFallback;
         promises.locators = null;
-        return fallback;
+        return uniqueFallback;
       }
       const empty: Locator[] = [];
       cache.locators = empty;
