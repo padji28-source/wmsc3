@@ -259,10 +259,14 @@ export function Layout({
     tabs.push({ id: 'controlstock', label: 'Control Stock', icon: ClipboardList });
     tabs.push({ id: 'ledger', label: 'Stock Ledger', icon: History });
     tabs.push({ id: 'balance', label: 'Stock Balance', icon: Scale });
+    tabs.push({ id: 'scanner', label: 'Rack Scanner', icon: ScanBarcode });
   }
 
   // 5. Roles: Petugas -> Inbound, Outbound, Scanner
   if (['Petugas'].includes(role)) {
+    tabs.push({ id: 'controlstock', label: 'Control Stock', icon: ClipboardList });
+    tabs.push({ id: 'ledger', label: 'Stock Ledger', icon: History });
+    tabs.push({ id: 'balance', label: 'Stock Balance', icon: Scale });
     tabs.push({ id: 'inbound', label: 'Inbound', icon: LogIn });
     tabs.push({ id: 'outbound', label: 'Outbound', icon: LogOut });
     tabs.push({ id: 'scanner', label: 'Rack Scanner', icon: ScanBarcode });
