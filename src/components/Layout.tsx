@@ -64,53 +64,10 @@ export function Layout({
   const [isMobileSearchExpanded, setIsMobileSearchExpanded] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const user = getCurrentUser();
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [isInstallable, setIsInstallable] = useState(false);
-  const [showInstallGuide, setShowInstallGuide] = useState(false);
 
   const [isTransaksiOpen, setIsTransaksiOpen] = useState(false);
   const [isStockOpen, setIsStockOpen] = useState(false);
   const [isManagementOpen, setIsManagementOpen] = useState(false);
-
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (e: any) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-      setIsInstallable(true);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone) {
-      setIsInstallable(false);
-    } else {
-      setIsInstallable(true);
-    }
-
-    const handleAppInstalled = () => {
-      console.log('App successfully installed!');
-      setIsInstallable(false);
-      setDeferredPrompt(null);
-    };
-    window.addEventListener('appinstalled', handleAppInstalled);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
-    };
-  }, []);
-
-  const handleInstallClick = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      console.log(`User installation decision: ${outcome}`);
-      setDeferredPrompt(null);
-      setIsInstallable(false);
-    } else {
-      setShowInstallGuide(true);
-    }
-  };
 
   useEffect(() => {
     if (['inbound', 'outbound', 'moving'].includes(currentTab)) {
@@ -432,27 +389,6 @@ export function Layout({
           {/* Developer Tools */}
           {renderMenuItem('developer', 'Developer Tools', Database)}
         </nav>
-
-        {isInstallable && (
-          <div className="mx-4 mb-4 p-3.5 bg-gradient-to-br from-blue-50 to-indigo-50/50 rounded-2xl border border-blue-100 shadow-xs text-left">
-            <div className="flex items-start gap-3">
-              <div className="p-2 bg-blue-100 text-blue-600 rounded-xl shrink-0">
-                <Smartphone className="w-4 h-4" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="text-xs font-black text-slate-800 tracking-tight leading-snug">Pasang Aplikasi WMS</h4>
-                <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">Instal di perangkat Anda untuk akses instan & performa cepat.</p>
-              </div>
-            </div>
-            <button
-              onClick={handleInstallClick}
-              className="mt-3 w-full py-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-[10px] rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <Download className="w-3 h-3" />
-              Instal Sekarang
-            </button>
-          </div>
-        )}
 
         <div className="p-4 border-t border-slate-200">
           <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100 font-sans">
@@ -900,29 +836,6 @@ export function Layout({
                 </div>
               )}
 
-              {isInstallable && (
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-50/50 rounded-2xl border border-blue-100 overflow-hidden">
-                  <button 
-                    onClick={() => {
-                      setMobileProfileActive(false);
-                      handleInstallClick();
-                    }}
-                    className="w-full p-3.5 flex items-center justify-between text-left hover:bg-blue-50/50 transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-blue-100 text-blue-600 rounded-xl">
-                        <Smartphone className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <p className="text-xs font-black text-slate-800">Pasang Aplikasi (PWA)</p>
-                        <p className="text-[9px] text-slate-500">Instal di layar utama perangkat Anda</p>
-                      </div>
-                    </div>
-                    <Download className="w-4 h-4 text-blue-600" />
-                  </button>
-                </div>
-              )}
-
               {/* Keluar */}
               <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
                 <button 
@@ -1150,76 +1063,6 @@ export function Layout({
 
 
 
-  const renderInstallGuideModal = () => {
-    if (!showInstallGuide) return null;
-    return (
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setShowInstallGuide(false)}></div>
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-2xl p-6 w-full max-w-md z-50 relative text-left text-slate-800 animate-in fade-in zoom-in-95 duration-200 font-sans">
-          <button 
-            onClick={() => setShowInstallGuide(false)}
-            className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-50 transition-colors cursor-pointer"
-            aria-label="Tutup"
-          >
-            <X className="w-5 h-5" />
-          </button>
-          
-          <div className="flex items-center gap-3 border-b border-slate-100 pb-4 mb-4">
-            <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
-              <Smartphone className="w-6 h-6" />
-            </div>
-            <div>
-              <h3 className="text-xs font-black text-slate-900">Panduan Instalasi Aplikasi</h3>
-              <p className="text-[9px] text-slate-400 mt-0.5">Pasang WMS Gudang PSN di layar utama perangkat Anda</p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            {/* Android/Chrome */}
-            <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-5 h-5 rounded-full bg-emerald-500 text-white text-[10px] font-black flex items-center justify-center">1</span>
-                <h4 className="text-[11px] font-black text-slate-800">Pengguna Android (Chrome/Opera)</h4>
-              </div>
-              <p className="text-[10px] text-slate-600 pl-7 leading-relaxed">
-                Ketuk ikon <span className="font-bold text-slate-800">titik tiga (⋮)</span> di pojok kanan atas browser Chrome, lalu pilih <span className="font-bold text-slate-800">"Instal Aplikasi"</span> atau <span className="font-bold text-slate-800">"Tambahkan ke Layar Utama"</span>.
-              </p>
-            </div>
-
-            {/* iOS Safari */}
-            <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-5 h-5 rounded-full bg-blue-500 text-white text-[10px] font-black flex items-center justify-center">2</span>
-                <h4 className="text-[11px] font-black text-slate-800">Pengguna iPhone / iOS (Safari)</h4>
-              </div>
-              <p className="text-[10px] text-slate-600 pl-7 leading-relaxed">
-                Buka aplikasi ini di browser <span className="font-bold text-slate-800">Safari</span>, ketuk tombol <span className="font-bold text-slate-800">Bagikan/Share (ikon kotak panah atas)</span> di bar bawah, gulir ke bawah, lalu pilih <span className="font-bold text-slate-800">"Tambahkan ke Layar Utama"</span>.
-              </p>
-            </div>
-
-            {/* Desktop Chrome */}
-            <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-5 h-5 rounded-full bg-indigo-500 text-white text-[10px] font-black flex items-center justify-center">3</span>
-                <h4 className="text-[11px] font-black text-slate-800">Pengguna Laptop / Desktop</h4>
-              </div>
-              <p className="text-[10px] text-slate-600 pl-7 leading-relaxed">
-                Ketuk ikon <span className="font-bold text-slate-800">Instal (ikon monitor bertanda panah bawah)</span> di bilah alamat browser (URL bar) atau tombol instal di sidebar kiri aplikasi ini.
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={() => setShowInstallGuide(false)}
-            className="mt-5 w-full py-2.5 bg-slate-950 hover:bg-slate-900 active:bg-slate-950 text-white font-black text-[10px] uppercase tracking-wider rounded-xl transition-all shadow-sm cursor-pointer text-center"
-          >
-            Saya Mengerti
-          </button>
-        </div>
-      </div>
-    );
-  };
-
   if (deviceView === 'desktop') {
     if (isMobileViewport) {
       return (
@@ -1227,14 +1070,12 @@ export function Layout({
           <div className="flex-1 bg-slate-50 relative overflow-hidden flex flex-col">
             {mobileContent}
           </div>
-          {renderInstallGuideModal()}
         </div>
       );
     }
     return (
       <div className="relative">
         {mainContent}
-        {renderInstallGuideModal()}
       </div>
     );
   }
@@ -1353,7 +1194,6 @@ export function Layout({
 
         </div>
       </div>
-      {renderInstallGuideModal()}
     </div>
   );
 }

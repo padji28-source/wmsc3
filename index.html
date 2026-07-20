@@ -6,28 +6,19 @@
     <meta name="description" content="Warehouse Management System (WMS) - Standalone system for Gudang A5 featuring Directed Putaway and FIFO Picking operations." />
     <meta name="keywords" content="WMS, Warehouse Management System, A5, Gudang, Inventory, Putaway, Picking" />
     <meta name="author" content="Gudang A5" />
-    <meta name="theme-color" content="#1d4ed8" />
-    <link rel="icon" type="image/png" href="/wms.png" />
-    <link rel="shortcut icon" type="image/png" href="/wms.png" />
-    <link rel="apple-touch-icon" href="/wms.png" />
-    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0F294D" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Gudang PSN" />
-    <title>Warehouse Management System A5</title>
+    <meta name="apple-mobile-web-app-title" content="WMS PSN" />
+    <link rel="icon" type="image/png" href="/icon-192.png" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <title>WMS Gudang PSN</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then((reg) => console.log('Service Worker registered successfully:', reg.scope))
-            .catch((err) => console.error('Service Worker registration failed:', err));
-        });
-      }
-    </script>
   </body>
 </html>
 
