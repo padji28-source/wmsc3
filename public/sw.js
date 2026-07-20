@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wms-gudang-psn-v9';
+const CACHE_NAME = 'wms-gudang-psn-v11';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -13,6 +13,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
+      console.log('SW: Installing and caching assets');
       return cache.addAll(ASSETS_TO_CACHE);
     })
   );
@@ -24,6 +25,7 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
+            console.log('SW: Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
@@ -35,17 +37,14 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   
-  const url = event.request.url;
-  // Let the browser handle standard non-GET requests, api calls, and firestore
-  if (
-    url.includes('/api/') || 
-    url.includes('firestore.googleapis.com')
-  ) {
+  const url = new URL(event.request.url);
+  
+  // Skip API calls and Firebase
+  if (url.pathname.startsWith('/api/') || url.hostname.includes('googleapis.com')) {
     return;
   }
 
-  // Strategy: Stale-While-Revalidate for standard assets, 
-  // but for navigation requests always try to serve index.html or root if network fails
+  // Navigation requests: Network-First with Cache Fallback
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(() => {
@@ -55,9 +54,13 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Other assets: Cache-First with Network Fallback
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      const fetchedResponse = fetch(event.request).then((networkResponse) => {
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+      return fetch(event.request).then((networkResponse) => {
         if (networkResponse && networkResponse.status === 200) {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
@@ -65,11 +68,8 @@ self.addEventListener('fetch', (event) => {
           });
         }
         return networkResponse;
-      }).catch(() => {
-        // Silent catch for network errors
       });
-
-      return cachedResponse || fetchedResponse;
     })
   );
 });
+

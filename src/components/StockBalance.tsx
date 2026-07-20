@@ -703,7 +703,7 @@ export function StockBalance({ globalSearch = '' }: { globalSearch?: string }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {currentGroupedData.map((group) => {
+              {currentGroupedData.map((group, idx) => {
                 const isExpanded = expandedRows[group.sku];
                 
                 // Kalkulasi level grup (Akumulasi dari input child)
@@ -712,7 +712,7 @@ export function StockBalance({ globalSearch = '' }: { globalSearch?: string }) {
                 const groupHasDiscrepancy = groupDifference !== 0;
 
                 return (
-                  <React.Fragment key={group.sku}>
+                  <React.Fragment key={`${group.sku}-${idx}`}>
                     {/* BARIS PARENT (SKU GABUNGAN) */}
                     <tr 
                       onClick={() => toggleRow(group.sku)}

@@ -14,21 +14,27 @@
   "prefer_related_applications": false,
   "icons": [
     {
-      "src": "/icon-192.png",
+      "src": "/wms.png",
       "type": "image/png",
       "sizes": "192x192",
       "purpose": "any"
     },
     {
-      "src": "/icon-192.png",
+      "src": "/wms.png",
       "type": "image/png",
       "sizes": "192x192",
       "purpose": "maskable"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/wms.png",
       "type": "image/png",
       "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "/wms.png",
+      "type": "image/png",
+      "sizes": "1024x1024",
       "purpose": "any"
     }
   ],
@@ -38,15 +44,16 @@
       "sizes": "1024x1024",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "WMS Dashboard"
+      "label": "Tampilan Desktop WMS"
     },
     {
       "src": "/wmsa5.png",
       "sizes": "1024x1024",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "WMS Mobile"
+      "label": "Tampilan Mobile WMS"
     }
   ],
   "categories": ["business", "productivity", "utilities"]
 }
+

@@ -136,11 +136,11 @@ export default function SearchableSelect({
           {/* Options List */}
           <div className="overflow-y-auto flex-1 py-1 max-h-48 scrollbar-thin">
             {filteredOptions.length > 0 ? (
-              filteredOptions.map(opt => {
+              filteredOptions.map((opt, idx) => {
                 const isSelected = opt.value === value;
                 return (
                   <div
-                    key={opt.value}
+                    key={`${opt.value}-${idx}`}
                     onClick={() => handleSelectOption(opt.value)}
                     className={`px-3 py-2 text-xs cursor-pointer flex flex-col gap-0.5 transition-colors border-l-2 ${
                       isSelected

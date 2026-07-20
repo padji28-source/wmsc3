@@ -3,7 +3,7 @@ import { Save, Printer, CheckCircle, Layers, AlertTriangle, Eye, X, Zap, Refresh
 import { Product } from '../types';
 import { getProducts, getTransactions, addTransaction, updateTransactionStatus, getLocators, getInventoryDetails, deleteTransactions } from '../lib/db';
 import { v4 as uuidv4 } from 'uuid';
-import { getCurrentUser } from '../lib/auth';
+import { getCurrentUser, USERS } from '../lib/auth';
 import { QRScanner } from './QRScanner';
 import SearchableSelect from './SearchableSelect';
 
@@ -20,6 +20,7 @@ interface ReceiptPreviewData {
   manifestId: string;
   rows: any[];
   operator: string;
+  operatorRole?: string;
   date: string;
   memo: string;
 }
@@ -257,6 +258,7 @@ export function Outbound({ globalSearch = '' }: { globalSearch?: string }) {
     
     const user = getCurrentUser();
     const operatorName = user ? user.name : 'IWAN GUNAWAN';
+    const operatorRole = user ? user.role : 'Admin C3';
     
     try {
       if (editingManifestId) {
@@ -309,6 +311,7 @@ export function Outbound({ globalSearch = '' }: { globalSearch?: string }) {
     try {
       const user = getCurrentUser();
       const operatorName = user ? user.name : 'IWAN GUNAWAN';
+      const operatorRole = user ? user.role : 'Admin C3';
       const now = new Date();
       const formattedDate = `${now.getDate()}/${now.getMonth() + 1}/${String(now.getFullYear()).slice(-2)}, ${String(now.getHours()).padStart(2, '0')}.${String(now.getMinutes()).padStart(2, '0')}.${String(now.getSeconds()).padStart(2, '0')}`;
 
@@ -333,6 +336,7 @@ export function Outbound({ globalSearch = '' }: { globalSearch?: string }) {
         manifestId: primaryManifestId,
         rows,
         operator: operatorName,
+        operatorRole: operatorRole,
         date: formattedDate,
         memo: bookedTransactions[0]?.memo || '-'
       });
@@ -461,10 +465,14 @@ export function Outbound({ globalSearch = '' }: { globalSearch?: string }) {
       };
     }).filter(Boolean);
 
+    const historicalUser = USERS.find(u => u.name === group.operator);
+    const operatorRole = historicalUser ? historicalUser.role : (group.operator === 'IWAN GUNAWAN' ? 'Admin C3' : 'Petugas');
+
     setReceiptPreview({
       manifestId: group.manifestId,
       rows,
       operator: group.operator,
+      operatorRole: operatorRole,
       date: formattedDate,
       memo: group.memo || '-'
     });
@@ -806,15 +814,41 @@ export function Outbound({ globalSearch = '' }: { globalSearch?: string }) {
 
               <div className="border-b border-dashed border-black my-3"></div>
 
-              <div className="grid grid-cols-2 text-center text-[10px] mt-4 pt-1 gap-4">
-                <div className="flex flex-col justify-between h-14">
-                  <p className="font-bold">PETUGAS GUDANG</p>
-                  <div className="border-t border-black w-full pt-1 truncate">{receiptPreview.operator}</div>
-                </div>
-                <div className="flex flex-col justify-between h-14">
-                  <p className="font-bold">ADMIN GUDANG</p>
-                  <div className="border-t border-black w-full pt-1">ADMIN</div>
-                </div>
+              {/* Signature Section */}
+              <div className="grid grid-cols-2 gap-8 text-center text-[10px] mt-8 font-mono">
+                {receiptPreview.operatorRole?.toLowerCase().includes('admin') || 
+                 receiptPreview.operatorRole?.toLowerCase().includes('kepala') || 
+                 receiptPreview.operatorRole?.toLowerCase().includes('developer') ? (
+                  <>
+                    <div className="flex flex-col items-center">
+                      <p className="font-bold mb-10 tracking-wider">ADMIN GUDANG</p>
+                      <div className="w-full border-t border-black pt-1 px-1 truncate leading-tight uppercase font-bold">
+                        &nbsp;
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <p className="font-bold mb-10 tracking-wider">PETUGAS GUDANG</p>
+                      <div className="w-full border-t border-black pt-1 leading-tight">
+                        &nbsp;
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex flex-col items-center">
+                      <p className="font-bold mb-10 tracking-wider">PETUGAS GUDANG</p>
+                      <div className="w-full border-t border-black pt-1 px-1 truncate leading-tight uppercase font-bold">
+                        &nbsp;
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <p className="font-bold mb-10 tracking-wider">HELPER GUDANG</p>
+                      <div className="w-full border-t border-black pt-1 leading-tight">
+                        &nbsp;
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -1087,15 +1121,41 @@ export function Outbound({ globalSearch = '' }: { globalSearch?: string }) {
             </tbody>
           </table>
           <div className="border-b border-dashed border-black my-3"></div>
-          <div className="grid grid-cols-2 text-center text-[10px] mt-4 pt-1 gap-4 page-break-inside-avoid">
-            <div className="flex flex-col justify-between h-14">
-              <p className="font-bold">PETUGAS GUDANG</p>
-              <div className="border-t border-black w-full pt-1">PETUGAS GUDANG</div>
-            </div>
-            <div className="flex flex-col justify-between h-14">
-              <p className="font-bold">ADMIN GUDANG</p>
-              <div className="border-t border-black w-full pt-1">ADMIN</div>
-            </div>
+          {/* Signature Section */}
+          <div className="grid grid-cols-2 gap-8 text-center text-[10px] mt-8 font-mono page-break-inside-avoid">
+            {receiptPreview.operatorRole?.toLowerCase().includes('admin') || 
+             receiptPreview.operatorRole?.toLowerCase().includes('kepala') || 
+             receiptPreview.operatorRole?.toLowerCase().includes('developer') ? (
+              <>
+                <div className="flex flex-col items-center">
+                  <p className="font-bold mb-10 tracking-wider">ADMIN GUDANG</p>
+                  <div className="w-full border-t border-black pt-1 px-1 truncate leading-tight uppercase font-bold">
+                    &nbsp;
+                  </div>
+                </div>
+                <div className="flex flex-col items-center">
+                  <p className="font-bold mb-10 tracking-wider">PETUGAS GUDANG</p>
+                  <div className="w-full border-t border-black pt-1 leading-tight">
+                    &nbsp;
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex flex-col items-center">
+                  <p className="font-bold mb-10 tracking-wider">PETUGAS GUDANG</p>
+                  <div className="w-full border-t border-black pt-1 px-1 truncate leading-tight uppercase font-bold">
+                    &nbsp;
+                  </div>
+                </div>
+                <div className="flex flex-col items-center">
+                  <p className="font-bold mb-10 tracking-wider">HELPER GUDANG</p>
+                  <div className="w-full border-t border-black pt-1 leading-tight">
+                    &nbsp;
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

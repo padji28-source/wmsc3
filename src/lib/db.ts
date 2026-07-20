@@ -186,19 +186,37 @@ export const getProducts = async (): Promise<Product[]> => {
       const response = await fetch(`/api/products${companyIdParam}`);
       if (!response.ok) throw new Error("API call failed");
       const products = await response.json();
-      if (companyId) {
-        saveToLocal('local_products_' + companyId, products);
+
+      const uniqueProducts: Product[] = [];
+      const seenSkus = new Set<string>();
+      for (const p of (products || [])) {
+        if (p && p.sku && !seenSkus.has(p.sku)) {
+          seenSkus.add(p.sku);
+          uniqueProducts.push(p);
+        }
       }
-      cache.products = products;
+
+      if (companyId) {
+        saveToLocal('local_products_' + companyId, uniqueProducts);
+      }
+      cache.products = uniqueProducts;
       promises.products = null;
-      return products;
+      return uniqueProducts;
     } catch (err) {
       console.warn("getProducts MongoDB API failed, trying local storage", err);
       const fallback = companyId ? getFromLocal('local_products_' + companyId) : null;
       if (fallback) {
-        cache.products = fallback;
+        const uniqueFallback: Product[] = [];
+        const seenSkusFallback = new Set<string>();
+        for (const p of fallback) {
+          if (p && p.sku && !seenSkusFallback.has(p.sku)) {
+            seenSkusFallback.add(p.sku);
+            uniqueFallback.push(p);
+          }
+        }
+        cache.products = uniqueFallback;
         promises.products = null;
-        return fallback;
+        return uniqueFallback;
       }
       const empty: Product[] = [];
       cache.products = empty;

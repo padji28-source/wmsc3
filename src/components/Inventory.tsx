@@ -941,7 +941,7 @@ export function Inventory({ globalSearch = '' }: { globalSearch?: string }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {paginatedProducts.map(p => {
+            {paginatedProducts.map((p, idx) => {
               const invData = inventoryDetails[p.sku] || { totalPhysicalQty: 0, locators: {} };
               const onHandQty = invData.totalPhysicalQty;
               const weightEstimate = (p.volumeM3 * 100).toFixed(1);
@@ -951,7 +951,7 @@ export function Inventory({ globalSearch = '' }: { globalSearch?: string }) {
                  .map(([locId, data]: [string, any]) => `${locId} (${data.physicalQty})`);
 
               return (
-                <tr key={p.sku} className="hover:bg-slate-50 transition-colors group">
+                <tr key={`${p.sku}-${idx}`} className="hover:bg-slate-50 transition-colors group">
                   <td 
                     className={`px-6 py-4 text-sm font-bold text-blue-700 font-mono tracking-tight ${hasActionAccess ? 'cursor-pointer hover:underline' : 'cursor-default'}`} 
                     onClick={() => hasActionAccess && handleEditClick(p)}
