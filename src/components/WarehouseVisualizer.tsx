@@ -39,11 +39,12 @@ const RACK_LAYOUT = [
   { id: 'R1', label: 'Rack R1 (PLUMBING)', zone: 'PLUMBING', racks: ['R1'] },
   { id: 'R2', label: 'Rack R2 (FILTER)', zone: 'FILTER', racks: ['R2'] },
   { id: 'R3', label: 'Rack R3 (FILTER)', zone: 'FILTER', racks: ['R3'] },
-  { id: 'R4', label: 'Rack R4 (SMART WATER)', zone: 'SMART_WATER', racks: ['R4'] },
-  { id: 'R5', label: 'Rack R5 (FITTING)', zone: 'FITTING', racks: ['R5'] },
-  { id: 'R6', label: 'Rack R6 (PACKAGING & FG Aksesoris)', zone: 'PACKAGING_MATERIALS', racks: ['R6'] },
-  { id: 'R7', label: 'Rack R7 (FG Oto Valve, Water Filter & Part Mesin)', zone: 'VALVE_FILTER_PART_MESIN', racks: ['R7'] },
-  { id: 'R8', label: 'Rack R8 (Kategori Lainnya / Sisanya)', zone: 'OTHER_CATEGORIES', racks: ['R8'] },
+  { id: 'R4', label: 'Rack R4 (FILTER)', zone: 'FILTER', racks: ['R4'] },
+  { id: 'R5', label: 'Rack R5 (SMART WATER)', zone: 'SMART_WATER', racks: ['R5'] },
+  { id: 'R6', label: 'Rack R6 (FITTING)', zone: 'FITTING', racks: ['R6'] },
+  { id: 'R7', label: 'Rack R7 (PACKAGING & FG Aksesoris)', zone: 'PACKAGING_MATERIALS', racks: ['R7'] },
+  { id: 'R8', label: 'Rack R8 (FG Oto Valve, Water Filter & Part Mesin)', zone: 'VALVE_FILTER_PART_MESIN', racks: ['R8'] },
+  { id: 'R9', label: 'Rack R9 (Kategori Lainnya / Sisanya)', zone: 'OTHER_CATEGORIES', racks: ['R9'] },
 ];
 
 export function WarehouseVisualizer() {
