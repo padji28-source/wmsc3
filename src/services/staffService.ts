@@ -75,6 +75,7 @@ export const staffService = {
         'Kepala Gudang': 6,
         'Kepala Gudang JKT': 7,
         'Petugas': 8,
+        'Helper': 9,
       };
       const pA = rolePriority[a.role] !== undefined ? rolePriority[a.role] : 99;
       const pB = rolePriority[b.role] !== undefined ? rolePriority[b.role] : 99;

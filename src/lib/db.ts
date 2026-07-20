@@ -294,6 +294,26 @@ export const deleteLocator = async (id: string) => {
   clearCache('locators');
 };
 
+export const deleteLocatorsBatch = async (ids: string[]) => {
+  const companyId = getCurrentCompanyId();
+  if (companyId) {
+    const list = getFromLocal('local_locators_' + companyId) || [];
+    const updated = list.filter((l: any) => !ids.includes(l.id));
+    saveToLocal('local_locators_' + companyId, updated);
+    cache.locators = updated;
+  }
+  try {
+    await fetch('/api/locators/delete-batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids })
+    });
+  } catch (err) {
+    console.warn("deleteLocatorsBatch MongoDB API failed, using local only", err);
+  }
+  clearCache('locators');
+};
+
 export const addProduct = async (product: Product) => {
   product.companyId = product.companyId || getCurrentCompanyId();
   addProductLocal(product);

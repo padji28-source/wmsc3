@@ -149,7 +149,7 @@ export default function App() {
     const isOwnerOrDev = ['OWNER', 'Developer', 'Super Admin'].includes(role);
     const isAdmin = ['ADMIN', 'Super Admin', 'Admin C3'].includes(role);
     const isManager = ['MANAGER', 'Kepala Gudang', 'Kepala Gudang JKT'].includes(role);
-    const isPetugas = ['Petugas'].includes(role);
+    const isPetugas = ['Petugas', 'Helper'].includes(role);
 
     // Helper functions for auth routes
     const canAccessOps = isAdmin;

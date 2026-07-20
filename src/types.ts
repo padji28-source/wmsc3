@@ -49,7 +49,7 @@ export type Permission =
   | 'inbound.create' | 'outbound.approve' 
   | 'user.manage' | 'billing.manage';
 
-export type UserRole = 'OWNER' | 'ADMIN' | 'MANAGER' | 'OPERATOR' | 'VIEWER' | 'Super Admin' | 'Developer' | 'Admin C3' | 'Kepala Gudang JKT' | 'Kepala Gudang' | 'Petugas';
+export type UserRole = 'OWNER' | 'ADMIN' | 'MANAGER' | 'OPERATOR' | 'VIEWER' | 'Super Admin' | 'Developer' | 'Admin C3' | 'Kepala Gudang JKT' | 'Kepala Gudang' | 'Petugas' | 'Helper';
 
 export interface UserProfile {
   uid: string;

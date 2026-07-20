@@ -21,12 +21,12 @@ interface HoveredSlotState extends LocatorStat {
 
 const ZONE_COLORS: Record<ZoneCategory | string, { text: string; bg: string; border: string; label: string }> = {
   'PLUMBING': { text: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-200', label: 'Plumbing (R1 & Floor A-B)' },
-  'FILTER': { text: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-200', label: 'Filter (R2, R3 & R4)' },
-  'SMART_WATER': { text: 'text-blue-500', bg: 'bg-blue-50', border: 'border-blue-200', label: 'Smart Water (R5 & Floor E-F)' },
-  'FITTING': { text: 'text-indigo-500', bg: 'bg-indigo-50', border: 'border-indigo-200', label: 'Fitting (R6 & Floor E-F)' },
-  'PACKAGING_MATERIALS': { text: 'text-orange-500', bg: 'bg-orange-50', border: 'border-orange-200', label: 'Packaging & Aksesoris (R7)' },
-  'VALVE_FILTER_PART_MESIN': { text: 'text-rose-500', bg: 'bg-rose-50', border: 'border-rose-200', label: 'Oto Valve, Water Filter, Part Mesin (R8)' },
-  'OTHER_CATEGORIES': { text: 'text-pink-500', bg: 'bg-pink-50', border: 'border-pink-200', label: 'Lainnya (R9)' },
+  'FILTER': { text: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-200', label: 'Filter (R2 & R3)' },
+  'SMART_WATER': { text: 'text-blue-500', bg: 'bg-blue-50', border: 'border-blue-200', label: 'Smart Water (R4 & Floor E-F)' },
+  'FITTING': { text: 'text-indigo-500', bg: 'bg-indigo-50', border: 'border-indigo-200', label: 'Fitting (R5 & Floor E-F)' },
+  'PACKAGING_MATERIALS': { text: 'text-orange-500', bg: 'bg-orange-50', border: 'border-orange-200', label: 'Packaging & Aksesoris (R6)' },
+  'VALVE_FILTER_PART_MESIN': { text: 'text-rose-500', bg: 'bg-rose-50', border: 'border-rose-200', label: 'Oto Valve, Water Filter, Part Mesin (R7)' },
+  'OTHER_CATEGORIES': { text: 'text-pink-500', bg: 'bg-pink-50', border: 'border-pink-200', label: 'Lainnya (R8)' },
   'DEFAULT': { text: 'text-slate-400', bg: 'bg-slate-50', border: 'border-slate-200', label: 'Buffer / General Storage' },
 };
 

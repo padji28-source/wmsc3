@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Layers, Plus, Pencil, Trash2, X, Save, Search, RefreshCw, AlertTriangle, Printer, QrCode, Download, Upload, FileSpreadsheet } from 'lucide-react';
 import QRCode from 'react-qr-code';
-import { getLocators, addLocator, updateLocator, deleteLocator, addLocatorsBatch } from '../lib/db';
+import { getLocators, addLocator, updateLocator, deleteLocator, addLocatorsBatch, deleteLocatorsBatch } from '../lib/db';
+import { getCurrentUser } from '../lib/auth';
 import { Locator, ZoneCategory } from '../types';
 
 const zones: ZoneCategory[] = [
@@ -20,6 +21,10 @@ export const RackManagement = () => {
   const [locators, setLocators] = useState<Locator[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const currentUser = getCurrentUser();
+  const isSuperAdmin = currentUser?.role === 'Super Admin' || currentUser?.role === 'Developer';
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
@@ -274,9 +279,39 @@ export const RackManagement = () => {
       try {
         await deleteLocator(id);
         setSuccess(`Rak ${id} berhasil dihapus.`);
+        // Remove from selection if deleted
+        setSelectedIds(prev => prev.filter(item => item !== id));
         fetchLocators();
       } catch (err: any) {
         setError(`Gagal menghapus rak: ${err.message}`);
+      }
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!isSuperAdmin) {
+      setError('Hanya Super Admin yang diizinkan untuk menghapus beberapa rak sekaligus.');
+      return;
+    }
+
+    if (selectedIds.length === 0) {
+      setError('Silakan pilih setidaknya satu rak untuk dihapus.');
+      return;
+    }
+
+    if (window.confirm(`Apakah Anda yakin ingin menghapus ${selectedIds.length} Rak (Locator) terpilih? Tindakan ini tidak dapat dibatalkan.`)) {
+      try {
+        setLoading(true);
+        setError('');
+        setSuccess('');
+        await deleteLocatorsBatch(selectedIds);
+        setSuccess(`${selectedIds.length} rak berhasil dihapus.`);
+        setSelectedIds([]);
+        fetchLocators();
+      } catch (err: any) {
+        setError(`Gagal menghapus beberapa rak: ${err.message}`);
+      } finally {
+        setLoading(false);
       }
     }
   };
@@ -496,12 +531,62 @@ export const RackManagement = () => {
         </div>
       </div>
 
+      {/* Bulk Delete Bar (Super Admin only) */}
+      {isSuperAdmin && selectedIds.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 transition-all animate-in fade-in duration-300">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-red-600 animate-bounce" />
+            <span className="text-sm font-bold text-red-800">
+              {selectedIds.length} Rak terpilih untuk dihapus
+            </span>
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => setSelectedIds([])}
+              className="w-full sm:w-auto px-4 py-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-lg transition-colors shadow-sm"
+            >
+              Batal
+            </button>
+            <button
+              onClick={handleBulkDelete}
+              className="w-full sm:w-auto px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-md shadow-red-100"
+            >
+              <Trash2 className="w-4 h-4" />
+              Hapus Rak Terpilih ({selectedIds.length})
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Table */}
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200">
             <thead className="bg-slate-50">
               <tr>
+                {isSuperAdmin && (
+                  <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-slate-500 tracking-wider w-12">
+                    <input
+                      type="checkbox"
+                      checked={filteredLocators.length > 0 && filteredLocators.every(loc => selectedIds.includes(loc.id))}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          const newSelections = [...selectedIds];
+                          filteredLocators.forEach(loc => {
+                            if (!newSelections.includes(loc.id)) {
+                              newSelections.push(loc.id);
+                            }
+                          });
+                          setSelectedIds(newSelections);
+                        } else {
+                          const filteredIds = filteredLocators.map(loc => loc.id);
+                          setSelectedIds(prev => prev.filter(id => !filteredIds.includes(id)));
+                        }
+                      }}
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer"
+                    />
+                  </th>
+                )}
                 <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-slate-500 tracking-wider">ID LOCATOR</th>
                 <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-slate-500 tracking-wider">BARCODE</th>
                 <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-slate-500 tracking-wider">RAK</th>
@@ -514,7 +599,7 @@ export const RackManagement = () => {
             <tbody className="bg-white divide-y divide-slate-200">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
+                  <td colSpan={isSuperAdmin ? 8 : 7} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center justify-center">
                       <RefreshCw className="w-8 h-8 text-blue-500 animate-spin mb-4" />
                       <span className="text-sm font-semibold text-slate-500">Memuat data rak...</span>
@@ -523,7 +608,23 @@ export const RackManagement = () => {
                 </tr>
               ) : filteredLocators.length > 0 ? (
                 filteredLocators.map((loc) => (
-                  <tr key={loc.id} className="hover:bg-slate-50/50 transition-colors">
+                  <tr key={loc.id} className={`hover:bg-slate-50/50 transition-colors ${selectedIds.includes(loc.id) ? 'bg-blue-50/40 hover:bg-blue-50/60' : ''}`}>
+                    {isSuperAdmin && (
+                      <td className="px-6 py-4 whitespace-nowrap w-12">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(loc.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedIds(prev => [...prev, loc.id]);
+                            } else {
+                              setSelectedIds(prev => prev.filter(id => id !== loc.id));
+                            }
+                          }}
+                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer"
+                        />
+                      </td>
+                    )}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="px-2.5 py-1 text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded">
                         {loc.id}
@@ -578,7 +679,7 @@ export const RackManagement = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-slate-500 font-medium text-sm">
+                  <td colSpan={isSuperAdmin ? 8 : 7} className="px-6 py-12 text-center text-slate-500 font-medium text-sm">
                     Tidak ada data rak yang ditemukan.
                   </td>
                 </tr>

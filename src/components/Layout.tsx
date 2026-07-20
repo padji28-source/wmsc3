@@ -28,10 +28,10 @@ import {
   User,
   Boxes,
   Camera,
-  Download,
   Info,
   X,
-  Share
+  Share,
+  Download
 } from 'lucide-react';
 import { getCurrentUser, logoutUser } from '../lib/auth';
 import { Transaction } from '../types';
@@ -64,7 +64,6 @@ export function Layout({
   const [isMobileSearchExpanded, setIsMobileSearchExpanded] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const user = getCurrentUser();
-
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstallable, setIsInstallable] = useState(false);
   const [showInstallGuide, setShowInstallGuide] = useState(false);
@@ -85,9 +84,6 @@ export function Layout({
     if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone) {
       setIsInstallable(false);
     } else {
-      // In some browsers, beforeinstallprompt might not fire, but we can still show install instructions
-      // We can default isInstallable to true to let users see the option and guide.
-      // Let's set a small check or just let it be installable via manual guide.
       setIsInstallable(true);
     }
 
@@ -112,7 +108,6 @@ export function Layout({
       setDeferredPrompt(null);
       setIsInstallable(false);
     } else {
-      // Show manual install guide if native prompt isn't ready/supported
       setShowInstallGuide(true);
     }
   };
@@ -259,14 +254,10 @@ export function Layout({
     tabs.push({ id: 'controlstock', label: 'Control Stock', icon: ClipboardList });
     tabs.push({ id: 'ledger', label: 'Stock Ledger', icon: History });
     tabs.push({ id: 'balance', label: 'Stock Balance', icon: Scale });
-    tabs.push({ id: 'scanner', label: 'Rack Scanner', icon: ScanBarcode });
   }
 
-  // 5. Roles: Petugas -> Inbound, Outbound, Scanner
-  if (['Petugas'].includes(role)) {
-    tabs.push({ id: 'controlstock', label: 'Control Stock', icon: ClipboardList });
-    tabs.push({ id: 'ledger', label: 'Stock Ledger', icon: History });
-    tabs.push({ id: 'balance', label: 'Stock Balance', icon: Scale });
+  // 5. Roles: Petugas, Helper -> Inbound, Outbound, Scanner
+  if (['Petugas', 'Helper'].includes(role)) {
     tabs.push({ id: 'inbound', label: 'Inbound', icon: LogIn });
     tabs.push({ id: 'outbound', label: 'Outbound', icon: LogOut });
     tabs.push({ id: 'scanner', label: 'Rack Scanner', icon: ScanBarcode });
@@ -443,22 +434,23 @@ export function Layout({
         </nav>
 
         {isInstallable && (
-          <div className="mx-4 mb-2 p-3.5 bg-gradient-to-br from-blue-50 to-indigo-50/50 border border-blue-100 rounded-2xl">
+          <div className="mx-4 mb-4 p-3.5 bg-gradient-to-br from-blue-50 to-indigo-50/50 rounded-2xl border border-blue-100 shadow-xs text-left">
             <div className="flex items-start gap-3">
-              <div className="p-2 bg-blue-600 text-white rounded-xl shrink-0 shadow-md shadow-blue-500/20">
-                <Download className="w-4 h-4" />
+              <div className="p-2 bg-blue-100 text-blue-600 rounded-xl shrink-0">
+                <Smartphone className="w-4 h-4" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-black text-slate-800">Instal Aplikasi WMS</p>
-                <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">Akses cepat dan lancar langsung dari homescreen perangkat Anda.</p>
-                <button
-                  onClick={handleInstallClick}
-                  className="mt-2.5 w-full py-1.5 px-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl text-[10px] font-black tracking-wider uppercase transition-colors cursor-pointer text-center shadow-sm"
-                >
-                  Instal Sekarang
-                </button>
+                <h4 className="text-xs font-black text-slate-800 tracking-tight leading-snug">Pasang Aplikasi WMS</h4>
+                <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">Instal di perangkat Anda untuk akses instan & performa cepat.</p>
               </div>
             </div>
+            <button
+              onClick={handleInstallClick}
+              className="mt-3 w-full py-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-[10px] rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <Download className="w-3 h-3" />
+              Instal Sekarang
+            </button>
           </div>
         )}
 
@@ -872,28 +864,7 @@ export function Layout({
                 </div>
               </div>
 
-              {isInstallable && (
-                <div className="space-y-1.5">
-                  <p className="text-[9px] font-black uppercase text-slate-400 px-1 tracking-wider font-sans">Aplikasi Offline / Mobile</p>
-                  <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-2xs">
-                    <button 
-                      onClick={handleInstallClick}
-                      className="w-full p-3.5 flex items-center justify-between text-left hover:bg-slate-50 transition-colors cursor-pointer"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
-                          <Download className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-black text-slate-800 font-sans">Instal Aplikasi Gudang PSN</p>
-                          <p className="text-[9px] text-slate-400 font-sans">Jadikan aplikasi native di HP / homescreen</p>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-slate-300" />
-                    </button>
-                  </div>
-                </div>
-              )}
+
 
               {role === 'Developer' && (
                 <div className="space-y-1.5">
@@ -937,6 +908,29 @@ export function Layout({
                       <ChevronRight className="w-4 h-4 text-slate-300" />
                     </button>
                   </div>
+                </div>
+              )}
+
+              {isInstallable && (
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50/50 rounded-2xl border border-blue-100 overflow-hidden">
+                  <button 
+                    onClick={() => {
+                      setMobileProfileActive(false);
+                      handleInstallClick();
+                    }}
+                    className="w-full p-3.5 flex items-center justify-between text-left hover:bg-blue-50/50 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-100 text-blue-600 rounded-xl">
+                        <Smartphone className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-black text-slate-800">Pasang Aplikasi (PWA)</p>
+                        <p className="text-[9px] text-slate-500">Instal di layar utama perangkat Anda</p>
+                      </div>
+                    </div>
+                    <Download className="w-4 h-4 text-blue-600" />
+                  </button>
                 </div>
               )}
 
@@ -1164,6 +1158,8 @@ export function Layout({
       </div>
     </div>
   );
+
+
 
   const renderInstallGuideModal = () => {
     if (!showInstallGuide) return null;

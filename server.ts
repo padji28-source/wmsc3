@@ -342,6 +342,19 @@ export const appPromise = (async () => {
     }
   });
 
+  app.post("/api/locators/delete-batch", async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids)) {
+        return res.status(400).json({ error: "ids must be an array" });
+      }
+      await dbHelper.deleteMany("locators", { id: { $in: ids } });
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.post("/api/locators/batch", async (req, res) => {
     try {
       const { locators } = req.body;

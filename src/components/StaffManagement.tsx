@@ -217,6 +217,7 @@ export const StaffManagement = () => {
                     <option value="ADMIN">Admin</option>
                     <option value="Admin C3">Admin C3</option>
                     <option value="Petugas">Petugas</option>
+                    <option value="Helper">Helper</option>
                   </select>
                 </div>
               </div>
@@ -380,6 +381,7 @@ export const StaffManagement = () => {
                             ['Super Admin'].includes(staff.role) ? 'bg-red-100 text-red-800 border border-red-200' :
                             ['MANAGER', 'Kepala Gudang', 'Kepala Gudang JKT'].includes(staff.role) ? 'bg-amber-100 text-amber-800 border border-amber-200' :
                             ['ADMIN', 'Admin C3'].includes(staff.role) ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                            ['Petugas', 'Helper'].includes(staff.role) ? 'bg-teal-100 text-teal-800 border border-teal-200' :
                             'bg-slate-100 text-slate-700'
                           }`}>
                             {['Developer', 'OWNER'].includes(staff.role) && <Key className="w-2.5 h-2.5" />}
