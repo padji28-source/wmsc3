@@ -130,6 +130,11 @@ export function ControlStock({ searchQuery = '' }: { searchQuery?: string }) {
     );
   });
 
+  // --- PERHITUNGAN GRAND TOTAL ---
+  const grandTotalQtyIn = filteredData.reduce((sum, row) => sum + row.qtyIn, 0);
+  const grandTotalQtyOut = filteredData.reduce((sum, row) => sum + row.qtyOut, 0);
+  const grandTotalOnHand = filteredData.reduce((sum, row) => sum + (row.qtyIn + row.qtyOut), 0);
+
   const exportToCSV = () => {
     if (filteredData.length === 0) return;
     
@@ -271,6 +276,27 @@ export function ControlStock({ searchQuery = '' }: { searchQuery?: string }) {
                 </tr>
               )}
             </tbody>
+            
+            {/* --- TAMPILAN GRAND TOTAL DI FOOTER TABEL --- */}
+            {!loading && filteredData.length > 0 && (
+              <tfoot className="bg-slate-100/80 border-t-2 border-slate-200 font-black text-slate-800 text-xs">
+                <tr>
+                  <td colSpan={5} className="px-6 py-4 text-right uppercase tracking-wider text-slate-600">
+                    Grand Total
+                  </td>
+                  <td className="px-6 py-4 text-right text-blue-700 font-bold text-sm">
+                    {grandTotalQtyIn}
+                  </td>
+                  <td className="px-6 py-4 text-right text-red-700 font-bold text-sm">
+                    {grandTotalQtyOut}
+                  </td>
+                  <td className="px-6 py-4 text-right text-slate-900 font-black text-sm">
+                    {grandTotalOnHand}
+                  </td>
+                </tr>
+              </tfoot>
+            )}
+
           </table>
         </div>
         {!loading && filteredData.length > 0 && (
