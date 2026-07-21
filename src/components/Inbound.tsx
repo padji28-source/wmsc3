@@ -283,6 +283,59 @@ export function Inbound({ globalSearch = '' }: { globalSearch?: string }) {
     setMessage(null);
   };
 
+  const handleUpdateAllocationQty = (locatorId: string, inputVal: number) => {
+    if (!productDetails || !productDetails.volumeM3) return;
+
+    const unitVolume = productDetails.volumeM3;
+    const stat = getSlotStat(locatorId);
+    
+    // Find current allocated qty for this slot
+    const currentAlloc = tempAllocations.find(t => t.locatorId === locatorId);
+    const currentQty = currentAlloc ? currentAlloc.qty : 0;
+
+    // Calculate base used volume for this slot excluding current allocation
+    const baseUsedVol = stat.usedVol - (currentQty * unitVolume);
+    const availableVol = Math.max(0, stat.maxVol - baseUsedVol);
+    const maxQtyForThisSlot = Math.floor(availableVol / unitVolume);
+
+    // Calculate remaining total unallocated qty
+    const otherAllocatedTotal = tempAllocations
+      .filter(t => t.locatorId !== locatorId)
+      .reduce((sum, item) => sum + item.qty, 0);
+    const remainingFromTotal = Math.max(0, actualTotalQty - otherAllocatedTotal);
+
+    const maxAllowed = Math.min(remainingFromTotal, maxQtyForThisSlot);
+
+    if (inputVal > maxAllowed && maxAllowed >= 0) {
+      if (maxQtyForThisSlot < remainingFromTotal) {
+        setMessage({
+          type: 'error',
+          text: `Maksimal kuantitas di Slot ${locatorId} adalah ${maxQtyForThisSlot} PCS berdasarkan kapasitas volume rak.`
+        });
+      } else {
+        setMessage({
+          type: 'error',
+          text: `Sisa kuantitas total yang belum terbagi hanya ${remainingFromTotal} PCS.`
+        });
+      }
+    } else {
+      setMessage(null);
+    }
+
+    const targetQty = Math.max(0, Math.min(inputVal, maxAllowed));
+
+    setTempAllocations(tempAllocations.map(t => {
+      if (t.locatorId === locatorId) {
+        return {
+          ...t,
+          qty: targetQty,
+          volume: targetQty * unitVolume
+        };
+      }
+      return t;
+    }));
+  };
+
   const handleAddBatchToList = () => {
     if (!productDetails || productDetails.volumeM3 === undefined || productDetails.volumeM3 === null || productDetails.volumeM3 <= 0) {
       setMessage({ 
@@ -292,12 +345,14 @@ export function Inbound({ globalSearch = '' }: { globalSearch?: string }) {
       return;
     }
 
-    if (tempAllocations.length === 0) {
-      setMessage({ type: 'error', text: 'Pilih minimal 1 atau beberapa rak pada grid matrix.' });
+    const validAllocations = tempAllocations.filter(a => a.qty > 0);
+
+    if (validAllocations.length === 0) {
+      setMessage({ type: 'error', text: 'Pilih minimal 1 atau beberapa rak pada grid matrix dengan kuantitas > 0.' });
       return;
     }
 
-    const newStagingItems = tempAllocations.map(alloc => ({
+    const newStagingItems = validAllocations.map(alloc => ({
       id: uuidv4(),
       sku: selectedSku,
       qty: alloc.qty,
@@ -608,13 +663,39 @@ export function Inbound({ globalSearch = '' }: { globalSearch?: string }) {
                 )}
                 
                 {tempAllocations.length > 0 && (
-                  <div className="bg-blue-50/50 border border-blue-200 rounded p-2.5">
-                    <p className="text-[11px] font-bold text-blue-800 mb-1">Rencana Distribusi Alokasi:</p>
-                    <div className="space-y-1 max-h-24 overflow-y-auto">
+                  <div className="bg-blue-50/50 border border-blue-200 rounded p-2.5 space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <p className="text-[11px] font-bold text-blue-800">Rencana Distribusi Alokasi:</p>
+                      <span className="text-[10px] text-slate-500 italic">Bisa edit Qty per slot</span>
+                    </div>
+                    <div className="space-y-1.5 max-h-36 overflow-y-auto pr-0.5">
                       {tempAllocations.map(t => (
-                        <div key={t.locatorId} className="text-[10px] flex justify-between font-mono text-slate-700 bg-white p-1 px-2 rounded border border-slate-100">
-                          <span>Slot {t.locatorId}</span>
-                          <span className="font-bold">{t.qty} PCS ({t.volume.toFixed(3)} m³)</span>
+                        <div key={t.locatorId} className="text-[10px] flex items-center justify-between font-mono bg-white p-1.5 px-2 rounded border border-blue-200 gap-2 shadow-xs">
+                          <span className="font-bold text-slate-800 shrink-0">Slot {t.locatorId}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[9px] text-slate-500 font-sans">Qty:</span>
+                            <input 
+                              type="number"
+                              min={1}
+                              value={t.qty === 0 ? '' : t.qty}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value, 10);
+                                handleUpdateAllocationQty(t.locatorId, isNaN(val) ? 0 : val);
+                              }}
+                              className="w-16 p-1 border border-blue-300 rounded text-center font-bold text-blue-700 bg-blue-50/50 focus:bg-white focus:border-blue-600 focus:ring-1 focus:ring-blue-500 outline-none font-mono"
+                              title="Ketik jumlah Qty untuk slot ini"
+                            />
+                            <span className="text-[9px] text-slate-500 font-sans">PCS</span>
+                            <span className="text-[9px] text-slate-400 font-sans">({t.volume.toFixed(3)} m³)</span>
+                            <button
+                              type="button"
+                              onClick={() => setTempAllocations(tempAllocations.filter(alloc => alloc.locatorId !== t.locatorId))}
+                              className="text-slate-400 hover:text-rose-600 p-0.5 ml-0.5 transition-colors"
+                              title="Hapus alokasi slot ini"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -646,16 +727,32 @@ export function Inbound({ globalSearch = '' }: { globalSearch?: string }) {
                     <h4 className="text-[10px] font-black text-slate-600 uppercase">Antrean Staging:</h4>
                     <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-bold rounded">{inboundList.length} Slot</span>
                   </div>
-                  <div className="space-y-1 max-h-28 overflow-y-auto mb-2">
+                  <div className="space-y-1.5 max-h-32 overflow-y-auto mb-2 pr-0.5">
                     {inboundList.map(item => (
                       <div key={item.id} className="text-[11px] flex justify-between bg-slate-50 p-1.5 rounded border border-slate-200 items-center">
-                        <div className="truncate pr-2">
+                        <div className="truncate pr-2 flex-1">
                           <p className="font-bold text-blue-700 font-mono text-[10px]">{item.sku}</p>
-                          <p className="text-[9px] text-slate-500">Qty: <span className="text-slate-800 font-bold">{item.qty} PCS</span> ➔ Slot {item.locatorId} ({item.systemLocator})</p>
+                          <p className="text-[9px] text-slate-500">Slot <strong className="text-slate-800 font-mono">{item.locatorId}</strong> ({item.systemLocator})</p>
                         </div>
-                        <button onClick={() => handleRemoveItem(item.id)} className="text-slate-400 hover:text-rose-600 p-0.5">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[9px] text-slate-500">Qty:</span>
+                          <input
+                            type="number"
+                            min={1}
+                            value={item.qty === 0 ? '' : item.qty}
+                            onChange={(e) => {
+                              const newQty = Math.max(1, parseInt(e.target.value, 10) || 1);
+                              const prod = products.find(p => p.sku === item.sku);
+                              const vol = prod ? (prod.volumeM3 || 0) * newQty : item.volume;
+                              setInboundList(inboundList.map(i => i.id === item.id ? { ...i, qty: newQty, volume: vol } : i));
+                            }}
+                            className="w-14 p-0.5 border border-slate-300 rounded text-center font-bold text-slate-800 text-[10px] bg-white focus:border-blue-500 outline-none font-mono"
+                          />
+                          <span className="text-[9px] text-slate-500">PCS</span>
+                          <button onClick={() => handleRemoveItem(item.id)} className="text-slate-400 hover:text-rose-600 p-0.5 ml-1">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
