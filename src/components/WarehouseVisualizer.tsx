@@ -20,7 +20,8 @@ interface HoveredSlotState extends LocatorStat {
 }
 
 const ZONE_COLORS: Record<ZoneCategory | string, { text: string; bg: string; border: string; label: string }> = {
-  'PLUMBING': { text: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-200', label: 'Plumbing (R1 , R2 & Floor A-B)' },
+  'PLUMBING': { text: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-200', label: 'Plumbing (R1, R2 & Floor A-B)' },
+  'FG_PLUMBING': { text: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-200', label: 'Plumbing (R1, R2 & Floor A-B)' },
   'FILTER': { text: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-200', label: 'Filter (R3)' },
   'SMART_WATER': { text: 'text-blue-500', bg: 'bg-blue-50', border: 'border-blue-200', label: 'Smart Water (R4 & Floor E-F)' },
   'FITTING': { text: 'text-indigo-500', bg: 'bg-indigo-50', border: 'border-indigo-200', label: 'Fitting (R5 & Floor E-F)' },
