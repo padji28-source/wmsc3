@@ -245,6 +245,9 @@ export const getLocators = async (): Promise<Locator[]> => {
       const seenIds = new Set<string>();
       for (const loc of (locators || [])) {
         if (loc && loc.id && !seenIds.has(loc.id)) {
+          if (loc.rack === 'R2') {
+            loc.zone = 'FG_PLUMBING';
+          }
           seenIds.add(loc.id);
           uniqueLocators.push(loc);
         }
@@ -264,6 +267,9 @@ export const getLocators = async (): Promise<Locator[]> => {
         const seenIds = new Set<string>();
         for (const loc of fallback) {
           if (loc && loc.id && !seenIds.has(loc.id)) {
+            if (loc.rack === 'R2') {
+              loc.zone = 'FG_PLUMBING';
+            }
             seenIds.add(loc.id);
             uniqueFallback.push(loc);
           }
@@ -875,13 +881,13 @@ export const getAlowedRacksForCategory = (category: string): string[] => {
   const cat = (category || '').trim().toUpperCase().replace(/[\s-_]+/g, ' ');
   
   if (cat.includes('PLUMBING') || cat.includes('PLUMB')) {
-    return ['R1', 'FL-A', 'FL-B'];
+    return ['R1', 'R2', 'FL-A', 'FL-B'];
   }
   if (cat.includes('WATER FILTER') || cat.includes('FG WATER FILTER') || cat.includes('FG_WATER_FILTER')) {
     return ['R7'];
   }
   if (cat.includes('FILTER') || cat.includes('FG FILTER')) {
-    return ['R2', 'R3'];
+    return ['R3'];
   }
   if (cat.includes('SMART WATER') || cat.includes('SMART_WATER') || cat.includes('FG SMART WATER') || cat.includes('FG_SMART_WATER')) {
     return ['R4', 'FL-E', 'FL-F'];
@@ -1007,7 +1013,7 @@ export const seedDatabase = async () => {
           { rack: 'FL-H', prefix: ['FL-H'], cols: 5, zone: 'DEFAULT' as ZoneCategory, levels: 2 },
           { rack: 'FL-I', prefix: ['FL-I'], cols: 5, zone: 'DEFAULT' as ZoneCategory, levels: 2 },
           { rack: 'R1', prefix: ['A'], cols: 10, zone: 'FG_PLUMBING' as ZoneCategory, levels: 4 },
-          { rack: 'R2', prefix: ['B'], cols: 9, zone: 'FG_SMART_WATER' as ZoneCategory, levels: 4 },
+          { rack: 'R2', prefix: ['B'], cols: 9, zone: 'FG_PLUMBING' as ZoneCategory, levels: 4 },
           { rack: 'R3', prefix: ['C', 'D'], cols: 9, zone: 'FG_FITTING' as ZoneCategory, levels: 4 },
           { rack: 'R4', prefix: ['E'], cols: 9, zone: 'FG_FILTER' as ZoneCategory, levels: 4 },
           { rack: 'R5', prefix: ['F'], cols: 9, zone: 'FG_FILTER' as ZoneCategory, levels: 4 },
