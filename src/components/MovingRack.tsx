@@ -13,8 +13,9 @@ interface DragItem {
 }
 
 const ZONE_COLORS: Record<ZoneCategory | string, { text: string; bg: string; border: string; label: string }> = {
-  'PLUMBING': { text: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-200', label: 'Plumbing (R1 & Floor A-B)' },
-  'FILTER': { text: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-200', label: 'Filter (R2 & R3)' },
+  'PLUMBING': { text: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-200', label: 'Plumbing (R1, R2 & Floor A-B)' },
+  'FG_PLUMBING': { text: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-200', label: 'Plumbing (R1, R2 & Floor A-B)' },
+  'FILTER': { text: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-200', label: 'Filter (R3)' },
   'SMART_WATER': { text: 'text-blue-500', bg: 'bg-blue-50', border: 'border-blue-200', label: 'Smart Water (R4 & Floor E-F)' },
   'FITTING': { text: 'text-indigo-500', bg: 'bg-indigo-50', border: 'border-indigo-200', label: 'Fitting (R5 & Floor E-F)' },
   'PACKAGING_MATERIALS': { text: 'text-orange-500', bg: 'bg-orange-50', border: 'border-orange-200', label: 'Packaging & Aksesoris (R6)' },
@@ -30,7 +31,7 @@ const RACK_LAYOUT = [
   { id: 'FL G-H', label: 'Lantai FL-G & FL-H (Buffer / General)', racks: ['FL-G', 'FL-H'], zone: 'DEFAULT' },
   { id: 'FL-I', label: 'Lantai FL-I (Buffer / General)', racks: ['FL-I'], zone: 'DEFAULT' },
   { id: 'R1', label: 'Rack R1 (PLUMBING)', zone: 'PLUMBING', racks: ['R1'] },
-  { id: 'R2', label: 'Rack R2 (FILTER)', zone: 'FILTER', racks: ['R2'] },
+  { id: 'R2', label: 'Rack R2 (PLUMBING)', zone: 'PLUMBING', racks: ['R2'] },
   { id: 'R3', label: 'Rack R3 (FILTER)', zone: 'FILTER', racks: ['R3'] },
   { id: 'R4', label: 'Rack R4 (SMART WATER)', zone: 'SMART_WATER', racks: ['R4'] },
   { id: 'R5', label: 'Rack R5 (FITTING)', zone: 'FITTING', racks: ['R5'] },
