@@ -138,23 +138,43 @@ export function ControlStock({ searchQuery = '' }: { searchQuery?: string }) {
   const exportToCSV = () => {
     if (filteredData.length === 0) return;
     
-    // Convert to CSV
+    // Headers matching table layout exactly
     const headers = [
-      'KODE PRODUK', 'DESKRIPSI NAMA', 'KATEGORI RAK', 'PACKAGING', 'UOM', 'PACK UOM', 
-      'POSISI RAK (SLOT)', 'QTY IN', 'QTY OUT', 'JUMLAH ON HAND'
+      'KODE PRODUK', 
+      'DESKRIPSI NAMA', 
+      'KATEGORI RAK', 
+      'PACKAGING / UOM', 
+      'POSISI RAK (SLOT)', 
+      'QTY IN', 
+      'QTY OUT', 
+      'JUMLAH ON HAND'
     ];
     
-    const csvContent = [
-      headers.join(','),
-      ...filteredData.map(row => {
-        const packing = row.packingSize || '-';
-        const packUom = row.packUom || '-';
-        return `"${row.sku}","${row.name}","${row.category}","${packing}","${row.uom}","${packUom}","${row.locatorId}","${row.qtyIn}","${row.qtyOut}","${row.qtyIn + row.qtyOut}"`;
-      })
-    ].join('\n');
+    const rows = filteredData.map(row => {
+      const pkgUom = row.packUom && row.packingSize 
+        ? `${row.packingSize} ${row.uom} / ${row.packUom}`
+        : row.uom || '-';
 
-    // Menerapkan qty in + qty out untuk jumlah on hand seperti diminta
-    
+      const cleanSku = (row.sku || '').replace(/"/g, '""');
+      const cleanName = (row.name || '').replace(/"/g, '""');
+      const cleanCategory = (row.category || '').replace(/"/g, '""');
+      const cleanPkg = pkgUom.replace(/"/g, '""');
+      const cleanLocator = (row.locatorId || '').replace(/"/g, '""');
+      const onHand = row.qtyIn + row.qtyOut;
+
+      return `"${cleanSku}";"${cleanName}";"${cleanCategory}";"${cleanPkg}";"${cleanLocator}";${row.qtyIn};${row.qtyOut};${onHand}`;
+    });
+
+    const totalRow = `"GRAND TOTAL";"";"";"";"";${grandTotalQtyIn};${grandTotalQtyOut};${grandTotalOnHand}`;
+
+    // Utf-8 BOM (\uFEFF) & explicit sep=; header guarantee Excel splits columns properly
+    const csvContent = '\uFEFF' + [
+      'sep=;',
+      headers.map(h => `"${h}"`).join(';'),
+      ...rows,
+      totalRow
+    ].join('\r\n');
+
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
@@ -163,6 +183,7 @@ export function ControlStock({ searchQuery = '' }: { searchQuery?: string }) {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (
