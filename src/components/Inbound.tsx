@@ -123,11 +123,7 @@ export function Inbound({ globalSearch = '' }: { globalSearch?: string }) {
 
   const productDetails = products.find(p => p.sku === selectedSku);
 
-  const compatibleLocators = locators.filter(l => {
-    if (!productDetails?.category) return true;
-    const allowedRacks = getAlowedRacksForCategory(productDetails.category);
-    return allowedRacks.includes(l.rack);
-  });
+  const compatibleLocators = locators;
 
   // Validasi otomatis saat SKU dipilih
   useEffect(() => {
@@ -248,16 +244,6 @@ export function Inbound({ globalSearch = '' }: { globalSearch?: string }) {
     }
 
     const targetLoc = locators.find(l => l.id === locId);
-    if (targetLoc && productDetails) {
-      const allowedRacks = getAlowedRacksForCategory(productDetails.category);
-      if (!allowedRacks.includes(targetLoc.rack)) {
-        setMessage({ 
-          type: 'error', 
-          text: `Slot Rak ${locId} (Rak ${targetLoc.rack}) tidak sesuai dengan aturan zonasi baru untuk Kategori "${productDetails.category}".` 
-        });
-        return;
-      }
-    }
 
     const unitVolume = productDetails.volumeM3;
     const stat = getSlotStat(locId);
