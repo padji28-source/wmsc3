@@ -47,7 +47,8 @@ export const loginUser = async (usernameOrEmail: string, password: string) => {
         console.warn("Firebase auto-registration warning:", createErr);
       }
 
-      localStorage.setItem('currentUser', JSON.stringify(sessionUser));
+      sessionStorage.setItem('currentUser', JSON.stringify(sessionUser));
+      localStorage.removeItem('currentUser');
       return sessionUser;
     }
 
@@ -69,7 +70,8 @@ export const loginUser = async (usernameOrEmail: string, password: string) => {
     }
 
     const sessionUser = await response.json();
-    localStorage.setItem('currentUser', JSON.stringify(sessionUser));
+    sessionStorage.setItem('currentUser', JSON.stringify(sessionUser));
+    localStorage.removeItem('currentUser');
     return sessionUser;
 
   } catch (err: any) {
@@ -91,7 +93,8 @@ export const loginUser = async (usernameOrEmail: string, password: string) => {
         sessionId: 'FALLBACK_' + Math.random().toString(36).substring(2, 10),
         isLocalFallback: true
       };
-      localStorage.setItem('currentUser', JSON.stringify(sessionUser));
+      sessionStorage.setItem('currentUser', JSON.stringify(sessionUser));
+      localStorage.removeItem('currentUser');
       return sessionUser;
     }
     
@@ -100,7 +103,7 @@ export const loginUser = async (usernameOrEmail: string, password: string) => {
 };
 
 export const registerUser = async (fullName: string, usernameInput: string, emailInput: string, roleInput: string, passwordInput: string, companyIdOverride?: string) => {
-  const loggedInStr = localStorage.getItem('currentUser');
+  const loggedInStr = sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser');
   const companyId = companyIdOverride || (loggedInStr ? JSON.parse(loggedInStr).companyId || 'COMPANY_C3_CORP' : 'COMPANY_C3_CORP');
   const email = emailInput || `${usernameInput.trim().toLowerCase()}@gudangpsn.com`;
 
@@ -148,10 +151,11 @@ export const logoutUser = async () => {
   } catch (fbErr) {
     console.warn("Firebase Auth sign-out warning:", fbErr);
   }
+  sessionStorage.removeItem('currentUser');
   localStorage.removeItem('currentUser');
 };
 
 export const getCurrentUser = () => {
-  const stored = localStorage.getItem('currentUser');
+  const stored = sessionStorage.getItem('currentUser');
   return stored ? JSON.parse(stored) : null;
 };

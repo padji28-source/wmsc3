@@ -40,7 +40,10 @@ export default function App() {
   const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
-    // 1. Ambil cached user dari localStorage untuk respon cepat di awal
+    // Purge old persistent login from localStorage so app requires re-login after close
+    localStorage.removeItem('currentUser');
+
+    // Get session user from sessionStorage (cleared when browser/tab closes)
     const cachedUser = getCurrentUser();
     setUser(cachedUser);
     if (cachedUser?.role === 'Developer') {

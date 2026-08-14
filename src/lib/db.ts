@@ -6,7 +6,7 @@ export const getProductDocId = (sku: string): string => {
 };
 
 export const getCurrentCompanyId = () => {
-    const userStr = localStorage.getItem('currentUser');
+    const userStr = sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser');
     if (userStr) {
         try {
             const user = JSON.parse(userStr);
@@ -17,7 +17,7 @@ export const getCurrentCompanyId = () => {
 }
 
 export const getCurrentWarehouseId = () => {
-    const userStr = localStorage.getItem('currentUser');
+    const userStr = sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser');
     if (userStr) {
         try {
             const user = JSON.parse(userStr);
@@ -28,7 +28,7 @@ export const getCurrentWarehouseId = () => {
 }
 
 export const isGlobalDeveloper = () => {
-    const userStr = localStorage.getItem('currentUser');
+    const userStr = sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser');
     if (userStr) {
         try {
             const user = JSON.parse(userStr);

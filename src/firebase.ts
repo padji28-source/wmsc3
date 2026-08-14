@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, setPersistence, browserSessionPersistence } from 'firebase/auth';
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, memoryLocalCache } from 'firebase/firestore';
 import firebaseConfigJson from '../firebase-applet-config.json';
 
@@ -32,9 +32,12 @@ try {
 
 export { db };
 
-let auth;
+let auth: ReturnType<typeof getAuth>;
 try {
   auth = getAuth(app);
+  setPersistence(auth, browserSessionPersistence).catch(err => {
+    console.warn("Could not set browserSessionPersistence on Firebase Auth:", err);
+  });
 } catch (err) {
   console.error("Firebase Auth initialization failed:", err);
   auth = {} as any; // Fallback object to avoid crash
