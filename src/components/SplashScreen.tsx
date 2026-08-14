@@ -52,8 +52,8 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
           className="relative w-28 h-28 md:w-32 md:h-32 rounded-3xl overflow-hidden shadow-2xl shadow-blue-500/20 border-2 border-slate-700 bg-white p-1.5 flex items-center justify-center mb-8"
         >
           <img
-            src="/wms.png"
-            alt="Gudang C3 Logo"
+            src="/rackflow.jpeg"
+            alt="RackFlow WMS Logo"
             className="w-full h-full object-cover rounded-2xl"
             referrerPolicy="no-referrer"
           />
@@ -66,9 +66,9 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.5, ease: 'easeOut' }}
-          className="text-3xl md:text-4xl font-extrabold tracking-widest text-[#F1B122] uppercase"
+          className="text-2xl md:text-3xl font-extrabold tracking-wider text-[#F1B122] uppercase"
         >
-          GUDANG C3
+          RACKFLOW WMS
         </motion.h1>
 
         {/* Subtitle reveal */}

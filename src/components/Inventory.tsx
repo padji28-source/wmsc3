@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Plus, Upload, Download, Edit2, Trash2, X, Save, AlertCircle, ChevronDown, CheckCircle2, AlertTriangle, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { Product, ZoneCategory, Locator, Transaction } from '../types';
 import { getProducts, addProduct, updateProduct, deleteProduct as deleteProductFromDb, addProductsBatch, getTransactions, getInventoryDetails, getLocators, addProductWithStock, addProductsBatchWithStock, addTransaction, getAlowedRacksForCategory } from '../lib/db';
@@ -22,21 +22,15 @@ export function Inventory({ globalSearch = '' }: { globalSearch?: string }) {
   const [newLocId, setNewLocId] = useState<string>('');
   const [newLocQty, setNewLocQty] = useState<string>('');
 
-  // Ambil data user aktif dan validasi hak akses khusus (Dibatasi hanya untuk Super Admin sesuai permintaan)
-  const currentUser = getCurrentUser();
-  const userRoleClean = currentUser?.role?.trim().toUpperCase() || '';
-  
-  const isSuperAdmin = userRoleClean === 'SUPER_ADMIN' || currentUser?.role?.toLowerCase() === 'super admin';
-  const isKepalaGudangJkt = userRoleClean === 'KEPALA_GUDANG_JKT' || userRoleClean === 'KEPALA GUDANG JKT';
-  
-  const canImportCSV = isSuperAdmin;
-
-  // Menggabungkan izin untuk melihat & mengeksekusi menu AKSI (Sekrung dibatasi HANYA untuk Super Admin)
-  const hasActionAccess = isSuperAdmin;
-
   // Local search states
   const [localSearch, setLocalSearch] = useState(globalSearch);
   const [searchQuery, setSearchQuery] = useState(globalSearch);
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(30);
+
+  const [transactions, setTransactions] = useState<any[]>([]);
 
   // Synchronize with globalSearch if it changes
   useEffect(() => {
@@ -44,16 +38,10 @@ export function Inventory({ globalSearch = '' }: { globalSearch?: string }) {
     setSearchQuery(globalSearch);
   }, [globalSearch]);
 
-  // Pagination states
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(30);
-
   // Reset page ke 1 saat filter / search berubah
   useEffect(() => {
     setCurrentPage(1);
   }, [categoryFilter, searchQuery]);
-
-  const [transactions, setTransactions] = useState<any[]>([]);
 
   const fetchProducts = () => {
     Promise.all([
@@ -73,8 +61,20 @@ export function Inventory({ globalSearch = '' }: { globalSearch?: string }) {
     fetchProducts();
   }, []);
 
+  // Ambil data user aktif dan validasi hak akses khusus (Dibatasi hanya untuk Super Admin sesuai permintaan)
+  const currentUser = getCurrentUser();
+  const userRoleClean = currentUser?.role?.trim().toUpperCase() || '';
+  
+  const isSuperAdmin = userRoleClean === 'SUPER_ADMIN' || currentUser?.role?.toLowerCase() === 'super admin';
+  const isKepalaGudangJkt = userRoleClean === 'KEPALA_GUDANG_JKT' || userRoleClean === 'KEPALA GUDANG JKT';
+  
+  const canImportCSV = isSuperAdmin;
+
+  // Menggabungkan izin untuk melihat & mengeksekusi menu AKSI (Sekrung dibatasi HANYA untuk Super Admin)
+  const hasActionAccess = isSuperAdmin;
+
   // Menghitung volume terpakai di setiap locator saat ini
-  const locatorUsage = React.useMemo(() => {
+  const locatorUsage = useMemo(() => {
     const usages: Record<string, number> = {};
     locators.forEach(l => {
       usages[l.id] = 0;
@@ -120,7 +120,7 @@ export function Inventory({ globalSearch = '' }: { globalSearch?: string }) {
   }, { totalQty: 0, totalVolume: 0, totalWeight: 0 });
 
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
-  const paginatedProducts = React.useMemo(() => {
+  const paginatedProducts = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredProducts.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredProducts, currentPage, itemsPerPage]);

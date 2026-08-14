@@ -1,6 +1,6 @@
 {
-  "name": "PSN Warehouse Management System",
-  "description": "Standalone WMS for Gudang PSN featuring Directed Putaway and FIFO Picking.",
+  "name": "RackFlow WMS",
+  "description": "RackFlow WMS - Standalone Warehouse Management System featuring Directed Putaway, FIFO Picking, and Rack Management.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

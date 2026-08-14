@@ -326,13 +326,19 @@ export function Layout({
 
       {/* Sidebar - responsive collapse & slide-in */}
       <aside className={`fixed inset-y-0 left-0 w-64 bg-white border-r border-slate-200 flex flex-col z-50 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static print:hidden ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="px-6 py-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-blue-700 flex items-center gap-2">
-              <Building2 className="w-6 h-6" />
-              Gudang C3
-            </h1>
-            <p className="text-sm text-slate-500 mt-1">Warehouse Operations</p>
+        <div className="px-6 py-6 flex items-center justify-between border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <img 
+              src="/rackflow.jpeg" 
+              alt="RackFlow WMS Logo" 
+              className="w-10 h-10 object-cover rounded-xl shadow-sm border border-slate-200 shrink-0" 
+            />
+            <div>
+              <h1 className="text-lg font-black text-slate-900 tracking-tight leading-tight">
+                RackFlow <span className="text-blue-600">WMS</span>
+              </h1>
+              <p className="text-[11px] text-slate-500 font-medium">Warehouse Operations</p>
+            </div>
           </div>
           <button 
             onClick={() => setIsMobileOpen(false)}
@@ -427,33 +433,7 @@ export function Layout({
           </div>
           
           <div className="flex items-center gap-3 sm:gap-4 shrink-0 relative">
-            {/* Device View Switcher (Desktop Only) */}
-            <div className="hidden md:flex items-center gap-0.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
-              <button
-                onClick={() => setDeviceView('desktop')}
-                className={`p-1.5 px-2.5 rounded-lg transition-all flex items-center gap-1.5 text-xs font-bold ${deviceView === 'desktop' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-                title="Tampilan Desktop"
-              >
-                <Monitor className="w-3.5 h-3.5" />
-                <span className="hidden lg:inline">Desktop</span>
-              </button>
-              <button
-                onClick={() => setDeviceView('ios')}
-                className={`p-1.5 px-2.5 rounded-lg transition-all flex items-center gap-1.5 text-xs font-bold ${deviceView === 'ios' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-                title="Tampilan iPhone 15"
-              >
-                <Smartphone className="w-3.5 h-3.5 text-slate-800" />
-                <span className="hidden lg:inline">iPhone 15</span>
-              </button>
-              <button
-                onClick={() => setDeviceView('android')}
-                className={`p-1.5 px-2.5 rounded-lg transition-all flex items-center gap-1.5 text-xs font-bold ${deviceView === 'android' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-                title="Tampilan Galaxy S24"
-              >
-                <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
-                <span className="hidden lg:inline">Android</span>
-              </button>
-            </div>
+
 
             <button 
               onClick={() => setNotificationsOpen(!notificationsOpen)}
@@ -620,7 +600,7 @@ export function Layout({
                   </div>
                 ) : (
                   <h2 className="text-xs font-black text-slate-800 uppercase tracking-wide truncate max-w-[150px]">
-                    {tabs.find(t => t.id === currentTab)?.label || 'Gudang C3'}
+                    {tabs.find(t => t.id === currentTab)?.label || 'RackFlow WMS'}
                   </h2>
                 )}
               </div>
@@ -707,7 +687,7 @@ export function Layout({
               <div className="w-full grid grid-cols-2 gap-4 mt-4 pt-3.5 border-t border-slate-100">
                 <div className="text-center">
                   <p className="text-[9px] text-slate-400 font-black uppercase tracking-wider">Warehouse</p>
-                  <p className="text-xs font-extrabold text-slate-600 mt-0.5 truncate">{user?.companyId || 'Gudang C3'}</p>
+                  <p className="text-xs font-extrabold text-slate-600 mt-0.5 truncate">{user?.companyId || 'RackFlow WMS'}</p>
                 </div>
                 <div className="text-center border-l border-slate-100">
                   <p className="text-[9px] text-slate-400 font-black uppercase tracking-wider">Sesi</p>

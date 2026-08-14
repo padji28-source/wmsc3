@@ -1,8 +1,8 @@
 {
-  "short_name": "WMS PSN",
-  "name": "WMS Gudang PSN",
-  "description": "Sistem Manajemen Gudang Pintar PSN - Monitor Stok, Inbound, Outbound, dan Rak.",
-  "id": "wms-gudang-psn-v1",
+  "short_name": "RackFlow WMS",
+  "name": "RackFlow WMS - Warehouse Management System",
+  "description": "Sistem Manajemen Gudang Pintar RackFlow WMS - Monitor Stok, Inbound, Outbound, dan Rak.",
+  "id": "rackflow-wms-v1",
   "scope": "/",
   "start_url": "/",
   "display": "standalone",

@@ -29,11 +29,16 @@ export const Login = ({ onLogin }: { onLogin: () => void }) => {
         
         {/* Brand Header */}
         <div className="bg-[#0055C4] p-8 text-center text-white">
-          <div className="mx-auto bg-white/20 w-16 h-16 rounded-2xl flex items-center justify-center mb-4 backdrop-blur-sm">
-            <PackageOpen className="w-8 h-8 text-white" />
+          <div className="mx-auto w-20 h-20 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-lg overflow-hidden border-2 border-white/30 p-1">
+            <img 
+              src="/rackflow.jpeg" 
+              alt="RackFlow WMS Logo" 
+              className="w-full h-full object-cover rounded-xl"
+              referrerPolicy="no-referrer"
+            />
           </div>
-          <h1 className="text-2xl font-black uppercase tracking-widest text-[#F1B122]">GUDANG C3</h1>
-          <p className="text-white/80 text-sm mt-2 font-medium">Warehouse Management System</p>
+          <h1 className="text-2xl font-black uppercase tracking-wider text-[#F1B122]">RackFlow WMS</h1>
+          <p className="text-white/80 text-sm mt-1 font-medium">Warehouse Management System</p>
         </div>
 
         <div className="border-b border-slate-100 bg-slate-50/50 py-4 text-center">
