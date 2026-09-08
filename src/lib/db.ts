@@ -1,5 +1,6 @@
 import { Locator, Product, Transaction, ZoneCategory } from '../types';
 import { v4 as uuidv4 } from 'uuid';
+import { calculateWarehouseOccupancy } from './warehouseMetrics';
 
 export const getProductDocId = (sku: string): string => {
   return encodeURIComponent(sku);
@@ -324,6 +325,57 @@ export const updateLocator = async (id: string, data: Partial<Locator>) => {
   clearCache('locators');
 };
 
+export const updateLocatorsBatch = async (ids: string[], updates: Partial<Locator>) => {
+  const companyId = getCurrentCompanyId();
+  if (companyId) {
+    const list = getFromLocal('local_locators_' + companyId) || [];
+    const updated = list.map((l: any) => {
+      if (ids.includes(l.id)) {
+        return { ...l, ...updates };
+      }
+      return l;
+    });
+    saveToLocal('local_locators_' + companyId, updated);
+    cache.locators = updated;
+  }
+  try {
+    await fetch('/api/locators/bulk-update', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids, updates })
+    });
+  } catch (err) {
+    console.warn("updateLocatorsBatch API failed, using local only", err);
+  }
+  clearCache('locators');
+};
+
+export const updateMultipleLocators = async (items: { id: string; data: Partial<Locator> }[]) => {
+  const companyId = getCurrentCompanyId();
+  if (companyId) {
+    const list = getFromLocal('local_locators_' + companyId) || [];
+    const itemMap = new Map(items.map(i => [i.id, i.data]));
+    const updated = list.map((l: any) => {
+      if (itemMap.has(l.id)) {
+        return { ...l, ...itemMap.get(l.id) };
+      }
+      return l;
+    });
+    saveToLocal('local_locators_' + companyId, updated);
+    cache.locators = updated;
+  }
+  try {
+    await fetch('/api/locators/bulk-update', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items })
+    });
+  } catch (err) {
+    console.warn("updateMultipleLocators API failed, using local only", err);
+  }
+  clearCache('locators');
+};
+
 export const deleteLocator = async (id: string) => {
   deleteLocatorLocal(id);
   try {
@@ -643,10 +695,8 @@ export const getInventoryStats = async () => {
     const transactions = await getTransactions();
     const products = await getProducts();
 
-    let totalMaxVolume = 0;
-    for (const loc of locators) totalMaxVolume += loc.maxVolumeM3;
-  
-    let totalUsedVolume = 0;
+    const occupancyMetrics = calculateWarehouseOccupancy(products, transactions, locators);
+
     let activeInbound = 0;
     let pendingOutbound = 0;
   
@@ -658,23 +708,17 @@ export const getInventoryStats = async () => {
       } else if (tx.status === 'BOOKED' && tx.type === 'OUTBOUND') {
         pendingOutbound++;
       }
-  
-      if (tx.status === 'CONFIRMED' || (tx.type === 'OUTBOUND' && tx.status === 'BOOKED')) {
-        const p = products.find(x => x.sku === tx.sku);
-        if (p) {
-          if (tx.type === 'INBOUND' && tx.status === 'CONFIRMED') {
-            totalUsedVolume += (tx.qty * p.volumeM3);
-          } else if (tx.type === 'OUTBOUND' && tx.status === 'CONFIRMED') {
-            totalUsedVolume += (tx.qty * p.volumeM3);
-          }
-        }
-      }
     }
   
-    const occupancy = totalMaxVolume > 0 ? (totalUsedVolume / totalMaxVolume) * 100 : 0;
-  
     return {
-      occupancy: Math.max(0, Math.min(100, Math.round(occupancy * 10) / 10)),
+      occupancy: Math.max(0, Math.min(100, Math.round(occupancyMetrics.occupancyPercentage * 10) / 10)),
+      occupancyPercentage: occupancyMetrics.occupancyPercentage,
+      totalMaxVolume: occupancyMetrics.totalMaxVolume,
+      totalUsedVolume: occupancyMetrics.totalUsedVolume,
+      totalRemainingVolume: occupancyMetrics.totalRemainingVolume,
+      totalSlotsCount: occupancyMetrics.totalSlotsCount,
+      occupiedSlotsCount: occupancyMetrics.occupiedSlotsCount,
+      emptySlotsCount: occupancyMetrics.emptySlotsCount,
       inbound: activeInbound, 
       outbound: pendingOutbound
     };
