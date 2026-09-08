@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Activity, Box, LogIn, LogOut, AlertTriangle, RefreshCw, Clock, X, Search, Zap } from 'lucide-react';
 import { WarehouseVisualizer } from './WarehouseVisualizer';
 import { getInventoryStats, getTransactions, getProducts, getLocators, getInventoryDetails, addTransaction } from '../lib/db';
+import { calculateWarehouseOccupancy, WarehouseOccupancyMetrics } from '../lib/warehouseMetrics';
 import { AuditLog } from './AuditLog';
 import { getCurrentUser } from '../lib/auth';
 import { v4 as uuidv4 } from 'uuid';
@@ -16,6 +17,17 @@ export function Dashboard({
   onSearchQueryChange?: (query: string) => void;
 }) {
   const [stats, setStats] = useState<any>({ occupancy: 0, inbound: 0, outbound: 0 });
+  const [occupancyMetrics, setOccupancyMetrics] = useState<WarehouseOccupancyMetrics>({
+    totalMaxVolume: 0,
+    totalUsedVolume: 0,
+    totalRemainingVolume: 0,
+    occupancyPercentage: 0,
+    totalSlotsCount: 0,
+    occupiedSlotsCount: 0,
+    emptySlotsCount: 0,
+    slotOccupancyRate: 0,
+    avgUsedPerOccupiedRack: 0
+  });
   const [todayInboundVolume, setTodayInboundVolume] = useState<number>(0);
   const [todayOutboundCount, setTodayOutboundCount] = useState<number>(0); // Mengubah nama state dari volume menjadi count
   const [pendingOutboundCount, setPendingOutboundCount] = useState<number>(0);
@@ -73,6 +85,10 @@ export function Dashboard({
 
       setStats(inventoryStats);
 
+      // Hitung metrik occupancy gudang yang 100% konsisten dengan Control Stock
+      const occMetrics = calculateWarehouseOccupancy(products, txs, locs);
+      setOccupancyMetrics(occMetrics);
+
       // Mapping SKU ke Volume M3 untuk kalkulasi volume Inbound
       const productVolumeMap = products.reduce((acc: Record<string, number>, p: any) => {
         acc[p.sku] = p.volumeM3 || 0;
@@ -113,7 +129,7 @@ export function Dashboard({
       // 4. Kalkulasi rack slot dengan okupansi kritis (>= 90%)
       const locatorStats: Record<string, { usedVol: number; maxVol: number; percentage: number; items: { sku: string; name: string; qty: number; volPerUnit: number }[] }> = {};
       locs.forEach(l => {
-        locatorStats[l.id] = { usedVol: 0, maxVol: l.maxVolumeM3, percentage: 0, items: [] };
+        locatorStats[l.id] = { usedVol: 0, maxVol: l.maxVolumeM3 || 5.4, percentage: 0, items: [] };
       });
 
       Object.entries(invDetails).forEach(([sku, data]: [string, any]) => {
@@ -182,18 +198,50 @@ export function Dashboard({
       {/* Summary Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         
-        {/* 1. Total Occupancy Card */}
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-          <div className="flex justify-between items-start mb-4">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Occupancy</p>
-            <Box className="w-5 h-5 text-blue-600" />
+        {/* 1. Total Occupancy Card - Disesuaikan dengan Control Stock */}
+        <div 
+          onClick={() => onNavigate && onNavigate('controlstock')}
+          className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between cursor-pointer hover:border-blue-300 hover:shadow-md transition-all group"
+          title="Klik untuk membuka rincian rak di Control Stock"
+        >
+          <div>
+            <div className="flex justify-between items-start mb-3">
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider group-hover:text-blue-600 transition-colors">
+                  Total Occupancy
+                </p>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-3xl font-black text-slate-900">
+                    {occupancyMetrics.occupancyPercentage.toFixed(1)}%
+                  </span>
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                    occupancyMetrics.occupancyPercentage >= 90 ? 'bg-rose-100 text-rose-700' :
+                    occupancyMetrics.occupancyPercentage >= 75 ? 'bg-amber-100 text-amber-700' :
+                    'bg-emerald-100 text-emerald-700'
+                  }`}>
+                    {occupancyMetrics.occupancyPercentage >= 90 ? 'Kritis' :
+                     occupancyMetrics.occupancyPercentage >= 75 ? 'Hampir Penuh' : 'Optimal'}
+                  </span>
+                </div>
+              </div>
+              <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                <Box className="w-5 h-5" />
+              </div>
+            </div>
+            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mb-2">
+              <div 
+                className={`h-full transition-all duration-500 rounded-full ${
+                  occupancyMetrics.occupancyPercentage >= 90 ? 'bg-rose-500' :
+                  occupancyMetrics.occupancyPercentage >= 75 ? 'bg-amber-500' :
+                  'bg-emerald-500'
+                }`}
+                style={{ width: `${Math.min(100, occupancyMetrics.occupancyPercentage)}%` }}
+              />
+            </div>
           </div>
-          <div className="flex items-end gap-2 mb-2">
-            <p className="text-3xl font-bold text-slate-800">{stats?.occupancy || 0}%</p>
-            <span className="text-sm font-medium text-emerald-600 pb-1">+2.4%</span>
-          </div>
-          <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-            <div className="bg-blue-600 h-full" style={{ width: `${stats?.occupancy || 0}%` }}></div>
+          <div className="flex items-center justify-between text-xs text-slate-500 font-medium pt-1 border-t border-slate-100 mt-2">
+            <span className="text-slate-700 font-bold">{occupancyMetrics.occupiedSlotsCount} Rak Terisi</span>
+            <span>{occupancyMetrics.totalUsedVolume.toFixed(2)} / {occupancyMetrics.totalMaxVolume.toFixed(1)} M³</span>
           </div>
         </div>
 
