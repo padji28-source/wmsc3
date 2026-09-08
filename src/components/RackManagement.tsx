@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   Layers, Plus, Pencil, Trash2, X, Save, Search, RefreshCw, AlertTriangle, 
   Printer, QrCode, Download, Upload, FileSpreadsheet, SlidersHorizontal, Check, 
-  Edit3, CheckSquare, RotateCcw, Copy, Table, ChevronDown, ChevronUp, Sparkles, CheckCircle2
+  Edit3, CheckSquare, RotateCcw, Copy, Table, ChevronDown, ChevronUp, Sparkles, CheckCircle2,
+  Box
 } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { 
@@ -66,6 +67,21 @@ export const RackManagement = () => {
 
   // Multi-row Grid Edit State (Rincian per masing-masing rak dalam modal)
   const [bulkRowEdits, setBulkRowEdits] = useState<Record<string, Partial<Locator>>>({});
+
+  // Dedicated Multi-Rack Capacity Edit State
+  const [isCapacityModalOpen, setIsCapacityModalOpen] = useState(false);
+  const [capacityEditTab, setCapacityEditTab] = useState<'BATCH' | 'GRID'>('BATCH');
+  const [batchCapacityValue, setBatchCapacityValue] = useState<number>(5.4);
+  const [capacityRowEdits, setCapacityRowEdits] = useState<Record<string, number>>({});
+  const [capacityQuickFill, setCapacityQuickFill] = useState<string>('5.4');
+  const [capacitySaving, setCapacitySaving] = useState(false);
+  const [capacityError, setCapacityError] = useState('');
+  const [isCapacityRackPickerOpen, setIsCapacityRackPickerOpen] = useState(false);
+  const [capacityPickerSearch, setCapacityPickerSearch] = useState('');
+
+  // Dropdown filter di tabel utama
+  const [selectedRackFilter, setSelectedRackFilter] = useState('');
+  const [selectedZoneFilter, setSelectedZoneFilter] = useState('');
 
   // Table In-line Edit Mode State
   const [isTableEditMode, setIsTableEditMode] = useState(false);
@@ -434,6 +450,147 @@ export const RackManagement = () => {
     });
   };
 
+  // Salin KHUSUS kapasitas baris 1 ke semua baris lain (tanpa menimpa nama rak atau kolom)
+  const handleCopyCapacityFirstRowToAll = () => {
+    if (selectedIds.length <= 1) return;
+    const firstId = selectedIds[0];
+    const firstData = bulkRowEdits[firstId];
+    const targetVol = firstData?.maxVolumeM3 !== undefined 
+      ? firstData.maxVolumeM3 
+      : (locators.find(l => l.id === firstId)?.maxVolumeM3 || 5.4);
+
+    setBulkRowEdits(prev => {
+      const updated = { ...prev };
+      selectedIds.forEach((id, idx) => {
+        if (idx === 0) return;
+        const current = updated[id] || {};
+        updated[id] = {
+          ...current,
+          maxVolumeM3: targetVol,
+        };
+      });
+      return updated;
+    });
+  };
+
+  // Buka Modal Khusus Edit Kapasitas Beberapa Rak
+  const openBulkCapacityModal = (targetIds?: string[]) => {
+    const ids = targetIds || selectedIds;
+    if (ids.length === 0) {
+      setIsCapacityRackPickerOpen(true);
+    } else {
+      setIsCapacityRackPickerOpen(false);
+    }
+
+    const firstSelected = locators.find(l => ids.includes(l.id)) || locators[0];
+    const initialCap = firstSelected?.maxVolumeM3 || 5.4;
+    setBatchCapacityValue(initialCap);
+    setCapacityQuickFill(initialCap.toString());
+    setCapacityError('');
+    setCapacityPickerSearch('');
+    
+    // Inisialisasi rincian per rak
+    const rowEdits: Record<string, number> = {};
+    ids.forEach(id => {
+      const loc = locators.find(l => l.id === id);
+      rowEdits[id] = loc?.maxVolumeM3 || 5.4;
+    });
+    setCapacityRowEdits(rowEdits);
+    setIsCapacityModalOpen(true);
+  };
+
+  // Simpan perubahan kapasitas dari Modal Khusus Kapasitas
+  const handleSaveBulkCapacity = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedIds.length === 0) {
+      setCapacityError('Pilih setidaknya satu rak untuk diperbarui kapasitasnya.');
+      return;
+    }
+
+    setCapacitySaving(true);
+    setCapacityError('');
+    try {
+      if (capacityEditTab === 'BATCH') {
+        if (isNaN(batchCapacityValue) || batchCapacityValue <= 0) {
+          setCapacityError('Kapasitas harus berupa angka positif lebih dari 0.');
+          setCapacitySaving(false);
+          return;
+        }
+
+        await updateLocatorsBatch(selectedIds, { maxVolumeM3: batchCapacityValue });
+        setSuccess(`Berhasil memperbarui kapasitas ${selectedIds.length} rak menjadi ${batchCapacityValue} M³.`);
+      } else {
+        // Grid mode: update each selected rack
+        const items = selectedIds.map(id => {
+          const val = capacityRowEdits[id] !== undefined
+            ? capacityRowEdits[id]
+            : (locators.find(l => l.id === id)?.maxVolumeM3 || 5.4);
+          return {
+            id,
+            data: { maxVolumeM3: val }
+          };
+        });
+
+        for (const item of items) {
+          if (isNaN(item.data.maxVolumeM3) || item.data.maxVolumeM3 <= 0) {
+            setCapacityError(`Kapasitas untuk rak ${item.id} harus lebih dari 0 M³.`);
+            setCapacitySaving(false);
+            return;
+          }
+        }
+
+        await updateMultipleLocators(items);
+        setSuccess(`Berhasil menyimpan rincian kapasitas untuk ${items.length} rak.`);
+      }
+
+      setIsCapacityModalOpen(false);
+      await fetchLocators();
+    } catch (err: any) {
+      setCapacityError('Gagal memperbarui kapasitas rak: ' + err.message);
+    } finally {
+      setCapacitySaving(false);
+    }
+  };
+
+  // Pilih semua slot dari satu nama rak tertentu
+  const handleSelectAllSlotsOfRack = (rackName: string) => {
+    if (!rackName) return;
+    const matchingSlots = locators.filter(l => l.rack === rackName).map(l => l.id);
+    const newSelected = Array.from(new Set([...selectedIds, ...matchingSlots]));
+    setSelectedIds(newSelected);
+    
+    // Inisialisasi juga ke row edits
+    setCapacityRowEdits(prev => {
+      const copy = { ...prev };
+      matchingSlots.forEach(id => {
+        if (copy[id] === undefined) {
+          const loc = locators.find(l => l.id === id);
+          copy[id] = loc?.maxVolumeM3 || 5.4;
+        }
+      });
+      return copy;
+    });
+  };
+
+  // Pilih semua slot dari satu kategori zona tertentu
+  const handleSelectAllSlotsOfZone = (zoneCat: string) => {
+    if (!zoneCat) return;
+    const matchingSlots = locators.filter(l => l.zone === zoneCat).map(l => l.id);
+    const newSelected = Array.from(new Set([...selectedIds, ...matchingSlots]));
+    setSelectedIds(newSelected);
+
+    setCapacityRowEdits(prev => {
+      const copy = { ...prev };
+      matchingSlots.forEach(id => {
+        if (copy[id] === undefined) {
+          const loc = locators.find(l => l.id === id);
+          copy[id] = loc?.maxVolumeM3 || 5.4;
+        }
+      });
+      return copy;
+    });
+  };
+
   const handleRemoveRackFromSelection = (locId: string) => {
     setSelectedIds(prev => prev.filter(id => id !== locId));
     setBulkRowEdits(prev => {
@@ -666,12 +823,18 @@ export const RackManagement = () => {
     }
   };
 
+  const uniqueRacks = Array.from(new Set(locators.map(l => l.rack).filter(Boolean))).sort();
+
   const filteredLocators = locators
-    .filter(l => 
-      l.id.toLowerCase().includes(search.toLowerCase()) || 
-      l.rack.toLowerCase().includes(search.toLowerCase()) ||
-      l.zone.toLowerCase().includes(search.toLowerCase())
-    )
+    .filter(l => {
+      const matchSearch = !search || 
+        l.id.toLowerCase().includes(search.toLowerCase()) || 
+        l.rack.toLowerCase().includes(search.toLowerCase()) ||
+        l.zone.toLowerCase().includes(search.toLowerCase());
+      const matchRack = !selectedRackFilter || l.rack === selectedRackFilter;
+      const matchZone = !selectedZoneFilter || l.zone === selectedZoneFilter;
+      return matchSearch && matchRack && matchZone;
+    })
     .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' }));
 
   const batchLocators = batchPrintSelectedOnly && selectedIds.length > 0
@@ -786,6 +949,14 @@ export const RackManagement = () => {
             Import CSV
           </button>
           <button
+            onClick={() => openBulkCapacityModal()}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-lg text-sm font-bold shadow flex items-center gap-2 transition-colors"
+            title="Ubah kapasitas volume (M³) beberapa rak sekaligus"
+          >
+            <Box className="w-4 h-4" />
+            Ubah Kapasitas Rak {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
+          </button>
+          <button
             onClick={() => openBulkEditModal()}
             className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg text-sm font-bold shadow flex items-center gap-2 transition-colors"
             title="Edit konfigurasi beberapa rak sekaligus atau ubah rinciannya"
@@ -826,7 +997,7 @@ export const RackManagement = () => {
       {/* Control Bar */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto flex-1">
-          <div className="relative w-full sm:w-80">
+          <div className="relative w-full sm:w-64">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search className="h-4 w-4 text-slate-400" />
             </div>
@@ -835,8 +1006,32 @@ export const RackManagement = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg text-sm bg-slate-50 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              placeholder="Cari berdasarkan ID, Rak, atau Zone..."
+              placeholder="Cari ID, Rak, atau Zone..."
             />
+          </div>
+
+          <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+            <select
+              value={selectedRackFilter}
+              onChange={(e) => setSelectedRackFilter(e.target.value)}
+              className="px-3 py-2 border border-slate-300 rounded-lg text-xs font-bold bg-white focus:ring-blue-500 focus:border-blue-500 outline-none cursor-pointer"
+            >
+              <option value="">Semua Rak ({uniqueRacks.length})</option>
+              {uniqueRacks.map(r => (
+                <option key={r} value={r}>Rak {r}</option>
+              ))}
+            </select>
+
+            <select
+              value={selectedZoneFilter}
+              onChange={(e) => setSelectedZoneFilter(e.target.value)}
+              className="px-3 py-2 border border-slate-300 rounded-lg text-xs font-bold bg-white focus:ring-blue-500 focus:border-blue-500 outline-none cursor-pointer"
+            >
+              <option value="">Semua Zona</option>
+              {zones.map(z => (
+                <option key={z} value={z}>{z.replace('_', ' ')}</option>
+              ))}
+            </select>
           </div>
 
           {filteredLocators.length > 0 && (
@@ -916,6 +1111,16 @@ export const RackManagement = () => {
               className="px-3.5 py-2 border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-lg transition-colors shadow-sm"
             >
               Batal Pilihan
+            </button>
+
+            {/* Tombol Ubah Kapasitas M3 */}
+            <button
+              onClick={() => openBulkCapacityModal()}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-md shadow-emerald-100"
+              title="Edit kapasitas volume maksimal (M³) beberapa rak terpilih secara serentak atau per rak"
+            >
+              <Box className="w-3.5 h-3.5" />
+              Ubah Kapasitas M³ ({selectedIds.length})
             </button>
 
             {/* Tombol Edit Beberapa Rak */}
@@ -1003,7 +1208,22 @@ export const RackManagement = () => {
                 <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-slate-500 tracking-wider">RAK</th>
                 <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-slate-500 tracking-wider">KOLOM / TINGKAT</th>
                 <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-slate-500 tracking-wider">KATEGORI ZONA</th>
-                <th scope="col" className="px-6 py-4 text-right text-xs font-bold text-slate-500 tracking-wider">KAPASITAS (M³)</th>
+                <th scope="col" className="px-6 py-4 text-right text-xs font-bold text-slate-500 tracking-wider">
+                  <div className="flex items-center justify-end gap-1.5">
+                    <span>KAPASITAS (M³)</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openBulkCapacityModal();
+                      }}
+                      className="p-1 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
+                      title="Ubah Kapasitas Beberapa Rak Sekaligus"
+                    >
+                      <SlidersHorizontal className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </th>
                 <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-slate-500 tracking-wider">AKSI</th>
               </tr>
             </thead>
@@ -1647,6 +1867,24 @@ export const RackManagement = () => {
                         onChange={(e) => setBulkMaxVolume(parseFloat(e.target.value) || 0)}
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-semibold bg-white disabled:bg-slate-100 disabled:text-slate-400 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                       />
+                      <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                        <span className="text-[10px] font-bold text-slate-400">Pilihan Cepat Kapasitas:</span>
+                        {[2.4, 3.6, 4.8, 5.4, 6.0, 7.2, 10.0].map((presetVal) => (
+                          <button
+                            key={presetVal}
+                            type="button"
+                            disabled={!bulkMaxVolumeEnabled}
+                            onClick={() => setBulkMaxVolume(presetVal)}
+                            className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold border transition-colors ${
+                              bulkMaxVolume === presetVal && bulkMaxVolumeEnabled
+                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                                : 'bg-white hover:bg-indigo-50 border-slate-200 text-slate-700 disabled:opacity-40'
+                            }`}
+                          >
+                            {presetVal} M³ {presetVal === 5.4 ? '(Standar)' : ''}
+                          </button>
+                        ))}
+                      </div>
                     </div>
 
                     {/* 6. Sinkronisasi Barcode ke ID */}
@@ -1675,7 +1913,17 @@ export const RackManagement = () => {
                     <div className="text-xs text-slate-600">
                       <span className="font-bold text-slate-800">Mode Grid Spreadsheet:</span> Edit masing-masing kolom langsung di bawah.
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={handleCopyCapacityFirstRowToAll}
+                        disabled={selectedIds.length <= 1}
+                        className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Hanya salin Kapasitas (M³) dari baris pertama ke seluruh baris lainnya tanpa mengubah nama rak atau kolom"
+                      >
+                        <Box className="w-3.5 h-3.5 text-emerald-600" />
+                        Salin Kapasitas Baris 1 ke Semua
+                      </button>
                       <button
                         type="button"
                         onClick={handleCopyFirstRowToAll}
@@ -1684,7 +1932,7 @@ export const RackManagement = () => {
                         title="Salin Rak, Kolom, Tingkat, Zona, dan Kapasitas dari baris pertama ke seluruh baris lainnya"
                       >
                         <Copy className="w-3.5 h-3.5" />
-                        Salin Baris 1 ke Semua
+                        Salin Semua Baris 1
                       </button>
                       <button
                         type="button"
@@ -1853,6 +2101,487 @@ export const RackManagement = () => {
         </div>
       )}
 
+      {/* Modal Khusus: Ubah Kapasitas (M³) Beberapa Rak */}
+      {isCapacityModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 px-6 py-4 text-white flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white/10 rounded-xl backdrop-blur-xs border border-white/20">
+                  <Box className="w-6 h-6 text-emerald-100" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black tracking-tight flex items-center gap-2">
+                    Ubah Kapasitas (M³) Beberapa Rak
+                    <span className="bg-white/20 text-white text-xs px-2.5 py-0.5 rounded-full font-bold border border-white/30">
+                      {selectedIds.length} Rak Dipilih
+                    </span>
+                  </h3>
+                  <p className="text-xs text-emerald-100 font-medium">
+                    Atur kapasitas volume maksimal penyimpanan slot rak gudang secara serentak atau per rak
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCapacityModalOpen(false)}
+                className="text-white/80 hover:text-white hover:bg-white/10 p-2 rounded-xl transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveBulkCapacity} className="flex-1 flex flex-col overflow-hidden p-5 sm:p-6 space-y-4">
+              {/* Error Message */}
+              {capacityError && (
+                <div className="p-3.5 bg-red-50 text-red-700 text-xs font-bold border border-red-200 rounded-xl flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                  <span>{capacityError}</span>
+                </div>
+              )}
+
+              {/* Selector / Filter Rak Terpilih */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                      Daftar Rak yang Akan Diubah ({selectedIds.length})
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedIds(locators.map(l => l.id))}
+                      className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 px-2 py-1 rounded transition-colors"
+                    >
+                      Pilih Semua Rak Gudang ({locators.length})
+                    </button>
+                    {selectedIds.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedIds([])}
+                        className="text-[11px] font-bold text-slate-500 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded transition-colors"
+                      >
+                        Kosongkan Pilihan
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Quick Add By Rack / Zone */}
+                <div className="flex flex-col sm:flex-row items-center gap-2 pt-1 border-t border-slate-200">
+                  <span className="text-[11px] font-bold text-slate-500 whitespace-nowrap">Pilih Berdasarkan:</span>
+                  <div className="flex items-center gap-2 w-full sm:w-auto flex-1 flex-wrap">
+                    <select
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          handleSelectAllSlotsOfRack(e.target.value);
+                          e.target.value = '';
+                        }
+                      }}
+                      className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none"
+                    >
+                      <option value="">+ Tambah Semua Slot di Rak...</option>
+                      {uniqueRacks.map(r => (
+                        <option key={r} value={r}>Rak {r}</option>
+                      ))}
+                    </select>
+
+                    <select
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          handleSelectAllSlotsOfZone(e.target.value);
+                          e.target.value = '';
+                        }
+                      }}
+                      className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 outline-none"
+                    >
+                      <option value="">+ Tambah Semua Slot di Zona...</option>
+                      {zones.map(z => (
+                        <option key={z} value={z}>{z.replace('_', ' ')}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Badges of selected racks */}
+                {selectedIds.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-1 bg-white rounded-lg border border-slate-200">
+                    {selectedIds.map(id => (
+                      <span
+                        key={id}
+                        className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-mono font-bold px-2 py-0.5 rounded"
+                      >
+                        {id}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveRackFromSelection(id)}
+                          className="text-emerald-500 hover:text-red-600 rounded-full hover:bg-emerald-100 p-0.5"
+                          title="Hapus dari daftar edit"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 font-medium text-center">
+                    Belum ada rak yang dipilih. Silakan pilih rak melalui menu di atas atau centang pada tabel di halaman utama.
+                  </div>
+                )}
+              </div>
+
+              {/* Mode Tabs */}
+              <div className="flex border-b border-slate-200 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setCapacityEditTab('BATCH')}
+                  className={`pb-2 text-xs font-black transition-all flex items-center gap-2 border-b-2 ${
+                    capacityEditTab === 'BATCH'
+                      ? 'border-emerald-600 text-emerald-700'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Box className="w-4 h-4" />
+                  Set Serentak (Kapasitas Sama)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCapacityEditTab('GRID')}
+                  className={`pb-2 text-xs font-black transition-all flex items-center gap-2 border-b-2 ${
+                    capacityEditTab === 'GRID'
+                      ? 'border-emerald-600 text-emerald-700'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Table className="w-4 h-4" />
+                  Rincian Per Rak (Grid Spreadsheet)
+                </button>
+              </div>
+
+              {/* TAB 1: BATCH (SET SERENTAK) */}
+              {capacityEditTab === 'BATCH' && (
+                <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+                  <div className="p-5 bg-emerald-50/50 rounded-2xl border border-emerald-200 space-y-4">
+                    <div>
+                      <label className="block text-xs font-black text-slate-800 uppercase tracking-wider mb-1.5">
+                        Kapasitas Maksimal Baru untuk Seluruh Rak Terpilih (M³) *
+                      </label>
+                      <div className="relative max-w-xs">
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0.1"
+                          required
+                          value={batchCapacityValue}
+                          onChange={(e) => setBatchCapacityValue(parseFloat(e.target.value) || 0)}
+                          className="w-full px-4 py-2.5 text-base font-black text-slate-900 border-2 border-emerald-500 rounded-xl bg-white focus:ring-4 focus:ring-emerald-100 outline-none font-mono"
+                          placeholder="Contoh: 5.4"
+                        />
+                        <span className="absolute right-3.5 top-2.5 text-xs font-bold text-slate-400">
+                          M³
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-1">
+                        Kapasitas ini akan diterapkan ke semua {selectedIds.length} rak yang Anda pilih.
+                      </p>
+                    </div>
+
+                    {/* Presets */}
+                    <div>
+                      <span className="text-[11px] font-black text-slate-700 uppercase tracking-wider block mb-2">
+                        Pilihan Ukuran Standar Gudang (1-Klik):
+                      </span>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { val: 2.4, label: 'Slot Kecil / Level Atas' },
+                          { val: 3.6, label: 'Slot Sedang' },
+                          { val: 4.8, label: 'Kapasitas Besar' },
+                          { val: 5.4, label: 'Standar Gudang' },
+                          { val: 6.0, label: 'Slot Tinggi' },
+                          { val: 7.2, label: 'Ekstra Besar' },
+                          { val: 10.0, label: 'Palet / Area Lantai' },
+                        ].map((preset) => (
+                          <button
+                            key={preset.val}
+                            type="button"
+                            onClick={() => setBatchCapacityValue(preset.val)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-1.5 ${
+                              batchCapacityValue === preset.val
+                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm shadow-emerald-200'
+                                : 'bg-white hover:bg-emerald-50 text-slate-700 border-slate-200'
+                            }`}
+                          >
+                            <span className="font-mono">{preset.val} M³</span>
+                            <span className="text-[10px] opacity-75 font-normal">({preset.label})</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Impact Calculation Preview */}
+                  {selectedIds.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {(() => {
+                        const currentSum = locators
+                          .filter(l => selectedIds.includes(l.id))
+                          .reduce((acc, curr) => acc + (curr.maxVolumeM3 || 0), 0);
+                        const newSum = selectedIds.length * (batchCapacityValue || 0);
+                        const diff = newSum - currentSum;
+                        const pct = currentSum > 0 ? (diff / currentSum) * 100 : 0;
+
+                        return (
+                          <>
+                            <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+                              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                                Total Kapasitas Sebelum
+                              </span>
+                              <span className="text-lg font-black text-slate-800 font-mono">
+                                {currentSum.toFixed(2)} M³
+                              </span>
+                              <span className="text-[10px] text-slate-400 block mt-0.5">
+                                Dari {selectedIds.length} rak terpilih
+                              </span>
+                            </div>
+
+                            <div className="p-3.5 bg-emerald-50 rounded-xl border border-emerald-200">
+                              <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">
+                                Total Kapasitas Sesudah
+                              </span>
+                              <span className="text-lg font-black text-emerald-800 font-mono">
+                                {newSum.toFixed(2)} M³
+                              </span>
+                              <span className="text-[10px] text-emerald-600 block mt-0.5">
+                                Rata-rata {batchCapacityValue} M³ / rak
+                              </span>
+                            </div>
+
+                            <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+                              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                                Perubahan Total Volume
+                              </span>
+                              <span className={`text-lg font-black font-mono ${diff > 0 ? 'text-emerald-600' : diff < 0 ? 'text-amber-600' : 'text-slate-700'}`}>
+                                {diff >= 0 ? `+${diff.toFixed(2)}` : diff.toFixed(2)} M³
+                              </span>
+                              <span className="text-[10px] text-slate-500 block mt-0.5">
+                                {diff !== 0 ? `(${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%)` : 'Tidak ada perubahan'}
+                              </span>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 2: GRID (RINCIAN PER RAK) */}
+              {capacityEditTab === 'GRID' && (
+                <div className="flex-1 flex flex-col overflow-hidden space-y-3">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                    <div className="text-xs text-slate-600">
+                      <span className="font-bold text-slate-800">Mode Grid Spreadsheet:</span> Masukkan kapasitas volume khusus untuk setiap slot rak.
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-1.5 bg-white px-2 py-1 rounded-lg border border-slate-200">
+                        <span className="text-[11px] font-bold text-slate-500">Isi Nilai:</span>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0.1"
+                          value={capacityQuickFill}
+                          onChange={(e) => setCapacityQuickFill(e.target.value)}
+                          className="w-16 px-1.5 py-0.5 border border-slate-300 rounded text-xs font-mono font-bold outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const val = parseFloat(capacityQuickFill);
+                            if (isNaN(val) || val <= 0) return;
+                            setCapacityRowEdits(prev => {
+                              const updated = { ...prev };
+                              selectedIds.forEach(id => {
+                                updated[id] = val;
+                              });
+                              return updated;
+                            });
+                          }}
+                          className="px-2 py-0.5 bg-emerald-600 text-white rounded text-[11px] font-bold hover:bg-emerald-700"
+                        >
+                          Terapkan ke Semua
+                        </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (selectedIds.length <= 1) return;
+                          const firstId = selectedIds[0];
+                          const firstVal = capacityRowEdits[firstId] !== undefined
+                            ? capacityRowEdits[firstId]
+                            : (locators.find(l => l.id === firstId)?.maxVolumeM3 || 5.4);
+                          setCapacityRowEdits(prev => {
+                            const updated = { ...prev };
+                            selectedIds.forEach((id, idx) => {
+                              if (idx === 0) return;
+                              updated[id] = firstVal;
+                            });
+                            return updated;
+                          });
+                        }}
+                        disabled={selectedIds.length <= 1}
+                        className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        <Copy className="w-3.5 h-3.5 text-emerald-600" />
+                        Salin Baris 1 ke Semua
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const edits: Record<string, number> = {};
+                          selectedIds.forEach(id => {
+                            const loc = locators.find(l => l.id === id);
+                            edits[id] = loc?.maxVolumeM3 || 5.4;
+                          });
+                          setCapacityRowEdits(edits);
+                        }}
+                        className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-colors flex items-center gap-1"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs flex-1">
+                    <div className="overflow-x-auto max-h-72">
+                      <table className="min-w-full divide-y divide-slate-200 text-xs">
+                        <thead className="bg-slate-100 text-slate-700 font-bold sticky top-0 z-10">
+                          <tr>
+                            <th className="px-3 py-2.5 text-left w-8">#</th>
+                            <th className="px-3 py-2.5 text-left">ID LOCATOR</th>
+                            <th className="px-3 py-2.5 text-left">RAK</th>
+                            <th className="px-3 py-2.5 text-left">KOLOM / TINGKAT</th>
+                            <th className="px-3 py-2.5 text-left">ZONA</th>
+                            <th className="px-3 py-2.5 text-right">KAPASITAS SEKARANG</th>
+                            <th className="px-3 py-2.5 text-right w-36">KAPASITAS BARU (M³) *</th>
+                            <th className="px-3 py-2.5 text-center w-12">HAPUS</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-slate-100">
+                          {selectedIds.length > 0 ? (
+                            selectedIds.map((locId, idx) => {
+                              const orig = locators.find(l => l.id === locId);
+                              const origVolume = orig?.maxVolumeM3 || 5.4;
+                              const currentVolume = capacityRowEdits[locId] !== undefined ? capacityRowEdits[locId] : origVolume;
+                              const isChanged = currentVolume !== origVolume;
+
+                              return (
+                                <tr key={locId} className={`hover:bg-emerald-50/30 transition-colors ${isChanged ? 'bg-emerald-50/20' : ''}`}>
+                                  <td className="px-3 py-2 font-mono text-slate-400">{idx + 1}</td>
+                                  <td className="px-3 py-2 whitespace-nowrap font-mono font-bold text-slate-800">
+                                    {locId}
+                                  </td>
+                                  <td className="px-3 py-2 font-bold text-slate-700">{orig?.rack || '-'}</td>
+                                  <td className="px-3 py-2 text-slate-600">
+                                    {orig?.column || '-'} / Tk.{orig?.level || 1}
+                                  </td>
+                                  <td className="px-3 py-2">
+                                    <span className="text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-semibold">
+                                      {orig?.zone?.replace('_', ' ') || 'DEFAULT'}
+                                    </span>
+                                  </td>
+                                  <td className="px-3 py-2 text-right font-mono text-slate-500">
+                                    {origVolume.toFixed(1)} M³
+                                  </td>
+                                  <td className="px-3 py-2 text-right">
+                                    <div className="flex items-center justify-end gap-1">
+                                      <input
+                                        type="number"
+                                        step="0.1"
+                                        min="0.1"
+                                        value={currentVolume}
+                                        onChange={(e) => {
+                                          const val = parseFloat(e.target.value) || 0;
+                                          setCapacityRowEdits(prev => ({
+                                            ...prev,
+                                            [locId]: val
+                                          }));
+                                        }}
+                                        className={`w-24 px-2 py-1 text-right text-xs font-mono font-bold border rounded outline-none ${
+                                          isChanged
+                                            ? 'border-emerald-500 bg-emerald-50/50 text-emerald-900 focus:ring-1 focus:ring-emerald-500'
+                                            : 'border-slate-300 focus:border-emerald-500'
+                                        }`}
+                                      />
+                                      <span className="text-[10px] text-slate-400 font-bold">M³</span>
+                                    </div>
+                                  </td>
+                                  <td className="px-3 py-2 text-center">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveRackFromSelection(locId)}
+                                      className="p-1 text-slate-400 hover:text-red-600 rounded hover:bg-red-50 transition-colors"
+                                      title="Keluarkan dari daftar edit"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          ) : (
+                            <tr>
+                              <td colSpan={8} className="px-4 py-8 text-center text-slate-400 text-xs font-semibold">
+                                Belum ada rak yang dipilih.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Modal Footer */}
+              <div className="flex gap-3 pt-3 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setIsCapacityModalOpen(false)}
+                  disabled={capacitySaving}
+                  className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-xs font-bold transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={capacitySaving || selectedIds.length === 0}
+                  className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors shadow-md shadow-emerald-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {capacitySaving ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Menyimpan Kapasitas...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      {capacityEditTab === 'BATCH'
+                        ? `Simpan Kapasitas ${batchCapacityValue} M³ (${selectedIds.length} Rak)`
+                        : `Simpan Rincian Kapasitas (${selectedIds.length} Rak)`}
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
