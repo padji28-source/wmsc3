@@ -36,6 +36,7 @@ export function Dashboard({
   const [searchCritical, setSearchCritical] = useState<string>('');
   const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [lastSynced, setLastSynced] = useState<Date>(new Date());
   const user = getCurrentUser();
 
   const handleAutoAdjust = async (rackId: string, sku: string, currentQty: number, maxQty: number) => {
@@ -166,6 +167,7 @@ export function Dashboard({
 
       criticalList.sort((a, b) => b.percentage - a.percentage);
       setCriticalRacks(criticalList);
+      setLastSynced(new Date());
 
     } catch (error) {
       console.error("Error fetching dashboard statistics:", error);
@@ -178,6 +180,13 @@ export function Dashboard({
     fetchStats();
   }, []);
 
+  const getRelativeTimeString = (date: Date) => {
+    const diff = date.getTime() - new Date().getTime();
+    const diffMins = Math.round(Math.abs(diff) / 60000);
+    if (diffMins === 0) return 'Just now';
+    return `${diffMins} mins ago`;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3">
@@ -185,14 +194,19 @@ export function Dashboard({
           <h2 className="text-2xl font-bold text-slate-800">Operations Dashboard</h2>
           <p className="text-slate-500 mt-1 text-sm">Real-time inventory and flow status</p>
         </div>
-        <button 
-          onClick={fetchStats}
-          disabled={isRefreshing}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-700 text-white rounded-lg text-sm font-medium hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
-        >
-          <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-          {isRefreshing ? 'Memuat...' : 'Refresh Data'}
-        </button>
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-medium text-slate-400">
+            Last synced: <span className="font-bold text-slate-600">{getRelativeTimeString(lastSynced)}</span>
+          </span>
+          <button 
+            onClick={fetchStats}
+            disabled={isRefreshing}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-700 text-white rounded-lg text-sm font-medium hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+          >
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Memuat...' : 'Refresh Data'}
+          </button>
+        </div>
       </div>
 
       {/* Summary Cards Grid */}
@@ -294,9 +308,9 @@ export function Dashboard({
               setShowCriticalModal(true);
             }
           }}
-          className={`p-5 rounded-xl border shadow-sm transition-all relative overflow-hidden ${
+          className={`p-5 rounded-xl border shadow-sm transition-all relative overflow-hidden flex flex-col justify-between ${
             criticalRacks.length > 0 
-              ? 'bg-rose-50/45 border-red-200 hover:border-red-400 hover:shadow-md cursor-pointer group' 
+              ? 'bg-rose-100 border-rose-300 hover:border-rose-400 hover:shadow-md cursor-pointer group' 
               : 'bg-white border-slate-200'
           }`}
         >
