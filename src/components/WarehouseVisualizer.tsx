@@ -7,7 +7,7 @@ interface LocatorStat {
   usedVol: number;
   maxVol: number;
   percentage: number;
-  items: { sku: string; name: string; qty: number }[];
+  items: { sku: string; name: string; qty: number; date?: string }[];
 }
 
 // Interface baru untuk mengunci tipe data tooltip hover agar tidak error
@@ -21,7 +21,6 @@ interface HoveredSlotState extends LocatorStat {
 
 const ZONE_COLORS: Record<ZoneCategory | string, { text: string; bg: string; border: string; label: string }> = {
   'PLUMBING': { text: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-200', label: 'Plumbing (R1, R2 & Floor A-B)' },
-  'FG_PLUMBING': { text: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-200', label: 'Plumbing (R1, R2 & Floor A-B)' },
   'FILTER': { text: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-200', label: 'Filter (R3)' },
   'SMART_WATER': { text: 'text-blue-500', bg: 'bg-blue-50', border: 'border-blue-200', label: 'Smart Water (R4 & Floor E-F)' },
   'FITTING': { text: 'text-indigo-500', bg: 'bg-indigo-50', border: 'border-indigo-200', label: 'Fitting (R5 & Floor E-F)' },
@@ -57,6 +56,8 @@ export function WarehouseVisualizer() {
 
   // State pelacak pergerakan dan penampung data untuk Tooltip Hover
   const [hoveredSlot, setHoveredSlot] = useState<HoveredSlotState | null>(null);
+  const [slotFilter, setSlotFilter] = useState<'ALL' | 'OCCUPIED' | 'VACANT'>('ALL');
+  const [heatmapMode, setHeatmapMode] = useState<'ZONE' | 'CAPACITY'>('ZONE');
 
   useEffect(() => {
     Promise.all([
@@ -88,7 +89,12 @@ export function WarehouseVisualizer() {
         const qty = locData.physicalQty;
         if (qty > 0 && s[locId]) {
           s[locId].usedVol += (qty * volPerUnit);
-          s[locId].items.push({ sku, name: prod?.name || 'Unknown', qty });
+          s[locId].items.push({ 
+            sku, 
+            name: prod?.name || 'Unknown', 
+            qty,
+            date: locData.earliestInbound
+          });
         }
       });
     });
@@ -200,19 +206,49 @@ export function WarehouseVisualizer() {
           <div className="w-full xl:w-80 bg-white border-b xl:border-b-0 xl:border-r border-slate-200 p-5 shrink-0 flex flex-col">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xs font-bold text-slate-400 tracking-widest uppercase">Denah Lantai (Floor Plan)</h3>
-              <span className="px-2 py-1 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded text-[10px] font-bold">2D MAP</span>
+              <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                <button
+                  onClick={() => setHeatmapMode('ZONE')}
+                  className={`px-2 py-1 text-[10px] font-bold rounded-md transition-colors ${heatmapMode === 'ZONE' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  ZONA
+                </button>
+                <button
+                  onClick={() => setHeatmapMode('CAPACITY')}
+                  className={`px-2 py-1 text-[10px] font-bold rounded-md transition-colors ${heatmapMode === 'CAPACITY' ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  HEATMAP
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-2 gap-3 flex-1">
               {RACK_LAYOUT.map(rack => {
-                const colors = ZONE_COLORS[rack.zone] || ZONE_COLORS['DEFAULT'];
+                let colors = ZONE_COLORS[rack.zone] || ZONE_COLORS['DEFAULT'];
+                
+                if (heatmapMode === 'CAPACITY') {
+                  const rackLocs = locators.filter(l => rack.racks?.includes(l.rack) ?? false);
+                  let used = 0;
+                  let max = 0;
+                  rackLocs.forEach(l => {
+                    max += l.maxVolumeM3;
+                    used += (stats[l.id]?.usedVol || 0);
+                  });
+                  const pct = max > 0 ? (used / max) * 100 : 0;
+                  
+                  if (pct === 0) colors = { bg: 'bg-slate-50', text: 'text-slate-400', border: 'border-slate-300 border-dashed', label: 'Kosong' };
+                  else if (pct >= 95) colors = { bg: 'bg-rose-50', text: 'text-rose-600', border: 'border-rose-300', label: 'Kritis' };
+                  else if (pct >= 70) colors = { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-300', label: 'Tinggi' };
+                  else colors = { bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-300', label: 'Aman' };
+                }
+
                 const isActive = selectedRack === rack.id;
                 return (
                   <button
                     key={rack.id}
                     onClick={() => !(rack as any).static && setSelectedRack(rack.id)}
                     disabled={(rack as any).static}
-                    className={`flex flex-col items-start p-3 border rounded-lg transition-all text-left ${isActive ? 'ring-2 ring-indigo-500 shadow-sm ' + colors.border : 'border-slate-200 hover:border-slate-300'} ${(rack as any).static ? 'bg-slate-50 opacity-70 cursor-not-allowed' : 'bg-white cursor-pointer'}`}
+                    className={`flex flex-col items-start p-3 rounded-lg transition-all text-left ${isActive ? 'ring-2 ring-indigo-500 shadow-sm ' + colors.border : 'border border-slate-200 hover:border-slate-300'} ${(rack as any).static ? 'bg-slate-50 opacity-70 cursor-not-allowed' : (heatmapMode === 'CAPACITY' ? colors.bg : 'bg-white cursor-pointer')}`}
                   >
                     <span className={`text-sm font-bold ${colors.text}`}>{rack.id}</span>
                     <span className="text-[10px] text-slate-500 mt-1 leading-tight">{rack.label}</span>
@@ -261,23 +297,33 @@ export function WarehouseVisualizer() {
                   </p>
                 )}
               </div>
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-left sm:text-right w-full sm:w-auto shrink-0">
-                <p className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Total Volume Terpakai</p>
-                <p className="text-xs sm:text-sm font-mono font-bold text-slate-800">
-                  {usedRackVolume.toFixed(2)} m³ / {totalRackVolume.toFixed(1)} m³
-                </p>
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 shrink-0">
+                  <button onClick={() => setSlotFilter('ALL')} className={`px-2 py-1 text-[10px] font-bold rounded-md transition-colors ${slotFilter === 'ALL' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>All Slot</button>
+                  <button onClick={() => setSlotFilter('OCCUPIED')} className={`px-2 py-1 text-[10px] font-bold rounded-md transition-colors ${slotFilter === 'OCCUPIED' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Occupied</button>
+                  <button onClick={() => setSlotFilter('VACANT')} className={`px-2 py-1 text-[10px] font-bold rounded-md transition-colors ${slotFilter === 'VACANT' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Vacant</button>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-left sm:text-right w-full sm:w-auto shrink-0">
+                  <p className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Total Volume Terpakai</p>
+                  <p className="text-xs sm:text-sm font-mono font-bold text-slate-800">
+                    {usedRackVolume.toFixed(2)} m³ / {totalRackVolume.toFixed(1)} m³
+                  </p>
+                </div>
               </div>
             </div>
 
             {/* Grid Container */}
-            <div className="flex-1 overflow-auto bg-slate-50/30 rounded-xl border border-slate-100 p-4">
+            <div className="flex-1 overflow-x-auto bg-slate-50/30 rounded-xl border border-slate-200 p-4 relative custom-scrollbar shadow-inner">
               <div className="inline-flex flex-col gap-6 w-max min-w-full pb-4">
                 
                 {levels.map(level => (
                   <div key={level} className="flex relative">
-                    {/* Level Label */}
-                    <div className="w-16 shrink-0 flex items-center justify-end pr-4 text-xs font-bold text-slate-400">
-                      Level {level}
+                    {/* Level Label & Accessibility */}
+                    <div className="w-20 shrink-0 flex flex-col items-end justify-center pr-4 text-xs font-bold text-slate-400">
+                      <span className="text-slate-500">Level {level}</span>
+                      <span className="text-[9px] text-slate-400 mt-1 flex items-center gap-1 bg-slate-100 px-1.5 py-0.5 rounded">
+                        {level === 1 || isFloatingRack ? 'Manual/Hand Jack' : 'Reach Truck'}
+                      </span>
                     </div>
 
                     {/* Columns */}
@@ -286,7 +332,16 @@ export function WarehouseVisualizer() {
                         const locId = `${col}.${level}`;
                         const stat = stats[locId] || { usedVol: 0, maxVol: 5.4, percentage: 0, items: [] };
                         const isVacant = stat.percentage === 0;
-                        const borderColor = getBorderUtilColor(stat.percentage);
+
+                        // Apply Slot Filter
+                        if (slotFilter === 'OCCUPIED' && isVacant) return <div key={locId} className="w-[190px] h-[140px] opacity-10"></div>;
+                        if (slotFilter === 'VACANT' && !isVacant) return <div key={locId} className="w-[190px] h-[140px] opacity-10"></div>;
+
+                        let cardStyle = 'bg-white border-slate-200';
+                        if (isVacant) cardStyle = 'bg-slate-50 border-slate-300 border-dashed opacity-80';
+                        else if (stat.percentage >= 95) cardStyle = 'bg-rose-50 border-rose-400';
+                        else if (stat.percentage >= 70) cardStyle = 'bg-amber-50 border-amber-400';
+                        else cardStyle = 'bg-emerald-50/50 border-emerald-400';
 
                         return (
                           <div key={locId} className="w-[190px] flex flex-col items-center">
@@ -295,44 +350,57 @@ export function WarehouseVisualizer() {
                               onMouseEnter={(e) => handleSlotMouseEnter(e, locId, stat, ZONE_COLORS[rackZone]?.label || 'General', selectedRack)}
                               onMouseMove={handleSlotMouseMove}
                               onMouseLeave={handleSlotMouseLeave}
-                              className={`w-full bg-white border-2 ${borderColor} rounded-[10px] p-3 shadow-sm relative overflow-hidden transition-all hover:shadow-md cursor-crosshair h-[140px] flex flex-col justify-between`}
+                              className={`w-full border-2 ${cardStyle} rounded-[10px] p-3 shadow-sm relative overflow-hidden transition-all hover:shadow-md cursor-crosshair h-[140px] flex flex-col justify-between group`}
                             >
                               
+                              {/* Quick Actions (Hover Only) */}
+                              <div className="absolute inset-0 bg-slate-900/10 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 z-10">
+                                <button className="p-2 bg-white rounded-lg shadow-sm text-indigo-600 hover:bg-indigo-50" title="Putaway / Inbound">
+                                  <Layers className="w-4 h-4" />
+                                </button>
+                                <button className="p-2 bg-white rounded-lg shadow-sm text-emerald-600 hover:bg-emerald-50" title="Transfer Stock">
+                                  <Map className="w-4 h-4" />
+                                </button>
+                              </div>
+
                               {/* Slot ID & % */}
-                              <div className="flex justify-between items-start">
-                                <span className="font-bold text-slate-800 text-sm">{(col as string).replace('FL-', '')}.{level}</span>
-                                <span className={`text-[11px] font-bold ${stat.percentage >= 95 ? 'text-rose-600' : 'text-slate-400'}`}>
+                              <div className="flex justify-between items-start z-0">
+                                <span className={`font-bold text-sm ${isVacant ? 'text-slate-400' : 'text-slate-800'}`}>{(col as string).replace('FL-', '')}.{level}</span>
+                                <span className={`text-[11px] font-bold ${stat.percentage >= 95 ? 'text-rose-600' : (isVacant ? 'text-slate-400' : 'text-emerald-700')}`}>
                                   {stat.percentage}%
                                 </span>
                               </div>
 
                               {/* Content */}
-                              <div className="flex-1 flex flex-col justify-center my-1 text-left w-full">
+                              <div className="flex-1 flex flex-col justify-center my-1 text-left w-full z-0">
                                 {isVacant ? (
                                   <div className="flex items-center justify-center h-full">
-                                    <span className="text-sm italic font-bold text-slate-200 tracking-widest uppercase">Vacant</span>
+                                    <span className="text-sm italic font-bold text-slate-300 tracking-widest uppercase">Vacant</span>
                                   </div>
                                 ) : (
                                   <>
                                     <div className="text-xs font-bold text-slate-800 truncate w-full" title={stat.items[0]?.name}>
                                       {stat.items[0]?.sku}
                                     </div>
-                                    <div className="text-xs font-medium text-slate-500 mt-0.5 mt-1">
+                                    <div className="text-[10px] text-slate-500 truncate w-full mt-0.5" title={stat.items[0]?.name}>
+                                      {stat.items[0]?.name}
+                                    </div>
+                                    <div className="text-xs font-medium text-slate-700 mt-1 bg-white/60 w-fit px-1 rounded">
                                       {stat.items.map(i => i.qty).reduce((a,b)=>a+b,0)} PCS
-                                      {stat.items.length > 1 && <span className="text-indigo-500 ml-1 font-bold">+{stat.items.length - 1} Mix</span>}
+                                      {stat.items.length > 1 && <span className="text-indigo-600 ml-1 font-bold">+{stat.items.length - 1} Mix</span>}
                                     </div>
                                   </>
                                 )}
                               </div>
 
                               {/* Progress bar */}
-                              <div className="mt-auto">
-                                <div className="h-[3px] w-full bg-slate-100 rounded-full overflow-hidden">
-                                  <div className={`h-full transition-all duration-500 ${getUtilColor(stat.percentage)}`} style={{ width: `${stat.percentage}%` }}></div>
+                              <div className="mt-auto z-0">
+                                <div className="h-[3px] w-full bg-slate-200/60 rounded-full overflow-hidden">
+                                  <div className={`h-full transition-all duration-500 ${isVacant ? 'bg-slate-300' : getUtilColor(stat.percentage)}`} style={{ width: `${stat.percentage}%` }}></div>
                                 </div>
                                 <div className="flex justify-between items-center mt-2">
-                                  <span className="text-[10px] font-bold text-slate-400">{stat.usedVol.toFixed(2)} m³</span>
-                                  <span className="text-[10px] font-bold text-slate-300">{stat.maxVol.toFixed(1)} m³ Max</span>
+                                  <span className={`text-[10px] font-bold ${isVacant ? 'text-slate-400' : 'text-slate-600'}`}>{stat.usedVol.toFixed(2)} m³</span>
+                                  <span className={`text-[10px] font-bold ${isVacant ? 'text-slate-300' : 'text-slate-400'}`}>{stat.maxVol.toFixed(1)} m³ Max</span>
                                 </div>
                               </div>
                             </div>
@@ -402,13 +470,21 @@ export function WarehouseVisualizer() {
             ) : (
               <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
                 {hoveredSlot.items.map((item, index) => (
-                  <div key={index} className="flex justify-between items-center bg-slate-50 px-2 py-1.5 rounded border border-slate-100 font-mono text-xs">
-                    <span className="font-bold text-indigo-600 truncate max-w-[130px]" title={item.sku}>
-                      {item.sku}
-                    </span>
-                    <span className="font-black text-slate-800 text-right bg-white px-1.5 py-0.5 rounded border border-slate-200">
-                      {item.qty} <span className="text-[10px] text-slate-400 font-bold">Qty</span>
-                    </span>
+                  <div key={index} className="flex flex-col bg-slate-50 px-2 py-1.5 rounded border border-slate-100 font-mono text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-indigo-600 truncate max-w-[130px]" title={item.sku}>
+                        {item.sku}
+                      </span>
+                      <span className="font-black text-slate-800 text-right bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                        {item.qty} <span className="text-[10px] text-slate-400 font-bold">Qty</span>
+                      </span>
+                    </div>
+                    {item.date && (
+                      <div className="text-[10px] text-slate-500 mt-1 flex justify-between items-center">
+                        <span className="font-sans">Tanggal Masuk:</span>
+                        <span>{new Date(item.date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: '2-digit' })}</span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
